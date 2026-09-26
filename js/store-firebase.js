@@ -93,7 +93,9 @@ const watchCol = (key, ref) =>
   watch(key, (cb) =>
     onSnapshot(
       ref,
-      (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      // 送信中（サーバーの確認前）の書き込みは表示しない。
+      // 出席登録が拒否されたのに、一瞬「登録できた」ように見えるのを防ぐため。
+      (snap) => cb(snap.docs.filter((d) => !d.metadata.hasPendingWrites).map((d) => ({ id: d.id, ...d.data() }))),
       () => cb([]),
     ),
   );
