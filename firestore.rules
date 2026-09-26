@@ -46,21 +46,19 @@ service cloud.firestore {
       return exists(rosterPath(cid)) && get(rosterPath(cid)).data.keys().hasAll(['seats', 'ids', 'names']);
     }
 
-    function seatOwnerId(cid, seat) {
-      return get(rosterPath(cid)).data.seats.get(seat, '');
-    }
-
-    function rosterName(cid, sid) {
-      return get(rosterPath(cid)).data.names.get(sid, '');
-    }
-
-    function inRoster(cid, sid) {
-      return get(rosterPath(cid)).data.ids.hasAny([sid]);
-    }
-
-    // 座席を指定しない授業（学生が好きな空席を選ぶ）かどうか
-    function freeSeating(cid) {
-      return courseData(cid).get('freeSeating', false) == true;
+    // 出席登録を許可してよいか（名簿と照合する）。
+    // 名簿と授業の読み取りは1回ずつにまとめてある。
+    function checkinAllowed(cid, d) {
+      let roster = get(rosterPath(cid)).data;
+      let seatOwner = roster.seats.get(d.seat, '');
+      let known = roster.ids.hasAny([d.sid]);
+      return
+        // 指定席：その席の学生の学籍番号と氏名が名簿と一致すること
+        (seatOwner == d.sid && roster.names.get(d.sid, '') == d.name)
+        // 名簿にない学生：空席に、氏名を入力すれば座れる
+        || (seatOwner == '' && !known && d.name.size() > 0)
+        // 自由席の授業：名簿の学生は好きな空席に座れる（氏名は学生の画面に出さないので空にする）
+        || (seatOwner == '' && known && d.name == '' && get(coursePath(cid)).data.freeSeating == true);
     }
 
     function sessionPath(cid, date) {
@@ -129,20 +127,7 @@ service cloud.firestore {
             && request.resource.data.name is string
             && request.resource.data.name.size() <= 60
             && hasRoster(cid)
-            && (
-                 // 名簿で席が決まっている場合：学籍番号と氏名が名簿と一致すること
-                 (seatOwnerId(cid, request.resource.data.seat) == request.resource.data.sid
-                   && rosterName(cid, request.resource.data.sid) == request.resource.data.name)
-                 // 席が決まっていない場合：名簿にない学生は、氏名を入力すれば空席に座れる
-                 || (seatOwnerId(cid, request.resource.data.seat) == ''
-                   && !inRoster(cid, request.resource.data.sid)
-                   && request.resource.data.name.size() > 0)
-                 // 自由席の授業：名簿の学生は好きな空席に座れる（氏名は学生の画面に出さないので空にする）
-                 || (freeSeating(cid)
-                   && seatOwnerId(cid, request.resource.data.seat) == ''
-                   && inRoster(cid, request.resource.data.sid)
-                   && request.resource.data.name == '')
-               );
+            && checkinAllowed(cid, request.resource.data);
           allow update, delete: if canWrite(cid);
         }
 
