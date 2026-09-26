@@ -22,8 +22,8 @@ function initForm() {
   fillSelect(el.term, ['前期', '後期', '通年', '集中'].map((t) => [t, t]), now.getMonth() >= 3 && now.getMonth() < 8 ? '前期' : '後期');
   fillSelect(el.day, [1, 2, 3, 4, 5, 6, 0].map((d) => [d, `${DAYS[d]}曜日`]), 1);
   fillSelect(el.period, range(1, 7).map((p) => [p, `${p}限`]), 1);
-  fillSelect(el.cols, range(1, 15).map((n) => [n, `${n}列`]), 6);
-  fillSelect(el.rows, range(1, 15).map((n) => [n, `${n}行`]), 5);
+  fillSelect(el.cols, range(1, 20).map((n) => [n, `${n}列`]), 6);
+  fillSelect(el.rows, range(1, 20).map((n) => [n, `${n}行`]), 5);
 
   form.addEventListener('change', drawPreview);
   form.addEventListener('submit', async (e) => {

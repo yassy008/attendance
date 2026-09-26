@@ -316,6 +316,12 @@ function buildSession(cid, date) {
       session.records[`#${s.id}`] = { status: 'present', seat: s.id, name: s.name, time: s.at || null, method: 'student' };
       if (s.by && s.by === uid()) session.devices[s.by] = `#${s.id}`;
     }
+    // 自分の登録（席の一覧を読み込まない大教室でも、自分の状態は分かるようにする）
+    const own = cache.get(`mine:${cid}:${date}`);
+    if (own && own.seat) {
+      session.records[`#${own.seat}`] = { status: 'present', seat: own.seat, name: own.name || '', time: own.at || null, method: 'student' };
+      session.devices[uid()] = `#${own.seat}`;
+    }
   }
 
   const mine = justRegistered.get(`${cid}:${date}`);
@@ -337,18 +343,43 @@ function buildSession(cid, date) {
   return session;
 }
 
+// 学生の画面で「誰が座っているか」を表示するのは、この席数までの授業に限る。
+// 大人数の授業で全員が座席表を見張ると、Firebase の無料枠（1日5万回の読み取り）を
+// 超えてしまうため、大教室では自分の登録だけを読み込む。
+const SMALL_CLASS_SEATS = 60;
+
+// 埋まっている席を1回だけ読み込む（変更の見張りはしない）
+async function loadSeatsOnce(cid, date) {
+  const key = `seats:${cid}:${date}`;
+  if (subs.has(key)) return;
+  subs.set(key, () => {});
+  try {
+    const snap = await getDocs(seatsCol(cid, date));
+    cache.set(
+      key,
+      snap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    );
+  } catch {
+    cache.set(key, []);
+  }
+}
+
 export async function getSession(cid, date) {
   await authReady;
-  const jobs = [
-    watchDoc(`sess:${cid}:${date}`, sessRef(cid, date)),
-    watchCol(`seats:${cid}:${date}`, seatsCol(cid, date)),
-  ];
+  const jobs = [watchDoc(`sess:${cid}:${date}`, sessRef(cid, date))];
   if (auth.isTeacher()) {
     jobs.push(
+      watchCol(`seats:${cid}:${date}`, seatsCol(cid, date)),
       watchCol(`checkins:${cid}:${date}`, checkinsCol(cid, date)),
       watchCol(`marks:${cid}:${date}`, marksCol(cid, date)),
       watchDoc(`note:${cid}:${date}`, noteRef(cid, date)),
     );
+  } else {
+    // 学生の画面：自分の登録だけを見張る（読み取り1件）
+    jobs.push(watchDoc(`mine:${cid}:${date}`, doc(checkinsCol(cid, date), uid() || 'anonymous')));
+    const course = cache.get(`course:${cid}`);
+    const seats = course ? (course.cols || 0) * (course.rows || 0) : 0;
+    if (seats && seats <= SMALL_CLASS_SEATS) jobs.push(loadSeatsOnce(cid, date));
   }
   await Promise.all(jobs);
   return buildSession(cid, date);
@@ -493,6 +524,15 @@ export async function checkIn(cid, { seat, studentId, name }) {
         /* 下のメッセージを出す */
       }
     }
+    // 席がすでに使われていることが原因かどうかを確かめる
+    // （大教室では席の一覧を読み込んでいないため、ここで1件だけ読む）
+    let taken = false;
+    try {
+      taken = (await getDoc(doc(seatsCol(cid, date), seat))).exists();
+    } catch {
+      /* 確認できなければ下のメッセージを出す */
+    }
+    if (taken) throw new Error('この席はすでに使われています。別の席を選んでください');
     throw new Error(
       assignedName
         ? '学籍番号が一致しません。自分の名前の席か確認してください'
