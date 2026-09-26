@@ -4,7 +4,8 @@ import { seatInfo, STATUS_LABEL } from './attendance.js';
 import { renderSeatmap } from './seatmap.js';
 import { $, esc, fmtTime, dialog, toast } from './util.js';
 
-const device = store.deviceId();
+// 端末ID（Firebase版ではログインが済むまで決まらないので、使うたびに取得する）
+const device = () => store.deviceId();
 let inited = false;
 
 export function studentUrl(courseId) {
@@ -44,7 +45,7 @@ export function init(state) {
 
 export function render(state) {
   const { course, session } = state;
-  const myId = session.devices[device] || null;
+  const myId = session.devices[device()] || null;
   const mine = myId ? session.records[myId] : null;
 
   let notice;
@@ -94,7 +95,7 @@ async function onSeat(state, key, myId) {
     if (!res) return;
     Object.assign(values, res);
     try {
-      await store.checkIn(state.courseId, { seat: key, studentId: res.studentId, name: res.name, device });
+      await store.checkIn(state.courseId, { seat: key, studentId: res.studentId, name: res.name, device: device() });
       toast('出席を登録しました', 'success');
       return;
     } catch (e) {
