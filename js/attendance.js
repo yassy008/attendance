@@ -1,4 +1,4 @@
-// 出席に関するルール（試作版ではブラウザ内で判定。Firebase 版ではセキュリティルール側でも同じ判定を行う）
+// 出席に関する共通の計算（座席の表示、出席簿の行など）
 
 export const STATUS_LABEL = { present: '出席', late: '遅刻', absent: '欠席' };
 export const STATUS_MARK = { present: '○', late: '遅', absent: '欠' };

@@ -44,11 +44,11 @@
           <div>
             <div class="field">
               <label for="c-title">授業名 *</label>
-              <input type="text" id="c-title" name="title" placeholder="例: 英語科指導法II" required>
+              <input type="text" id="c-title" name="title" placeholder="例: 英語科指導法 I" required>
             </div>
             <div class="field">
               <label for="c-room">教室名（任意）</label>
-              <input type="text" id="c-room" name="roomName" placeholder="例: 共通講義棟 N-301">
+              <input type="text" id="c-room" name="roomName" placeholder="例: DN301">
             </div>
             <div class="field-row">
               <div class="field"><label for="c-year">年度</label><input type="number" id="c-year" name="year" min="2020" max="2100"></div>
@@ -76,7 +76,7 @@
         <li>作成すると、学生用のURLとQRコードが自動で作られます。</li>
         <li>名簿（学籍番号・氏名）を読み込むと座席を指定できます。シャッフルやグループ分けもできます。</li>
         <li>出席記録は日付ごとに保存され、「出席簿」で学期全体を確認できます。</li>
-        <li>試作版のため、データはこのパソコンのブラウザ内だけに保存されます（ログインも省略しています）。</li>
+        <li>データはFirebaseに保存されます。教員は大学のGoogleアカウントでログインし、学生はログインなしで出席登録できます。</li>
       </ul>
     </aside>
   </main>
