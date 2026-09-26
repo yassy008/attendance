@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>出席簿</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📒</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">出</span>出席確認</a>
+      <div class="course-head">
+        <h1 id="title">出席簿</h1>
+        <div class="course-meta" id="sub"></div>
+      </div>
+      <span id="authbar"></span>
+      <a class="btn btn-outline btn-sm no-print" id="back" href="index.html">← 教員モードに戻る</a>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="panel">
+      <div class="page-head no-print" style="align-items: center">
+        <div class="muted" style="font-size: 13.5px">
+          <span class="m-present">○</span> 出席　<span class="m-late">遅</span> 遅刻　<span class="m-absent">欠</span> 欠席　空欄 未登録<br>
+          マスをクリックすると「出席 → 遅刻 → 欠席 → 未登録」の順に切り替わります
+        </div>
+        <div class="row">
+          <button type="button" class="btn btn-green" id="csv-table">CSV（出席簿の表）</button>
+          <button type="button" class="btn btn-green" id="csv-records">CSV（1行1記録）</button>
+          <button type="button" class="btn btn-outline" onclick="print()">印刷</button>
+        </div>
+      </div>
+      <div class="table-wrap" id="book"></div>
+      <p class="hint">「欠席」の合計には未登録も含みます。出席率＝（出席＋遅刻）÷ 授業回数</p>
+    </section>
+  </main>
+
+  <script type="module" src="js/book.js"></script>
+</body>
+</html>

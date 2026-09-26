@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>出席確認</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">出</span>出席確認</a>
+      <div class="course-head">
+        <h1 id="title"></h1><button type="button" class="link-btn" id="rename" hidden>✎ 名前を変更</button>
+        <div class="course-meta" id="info"></div>
+      </div>
+      <span id="authbar"></span>
+      <div class="segmented mode-tabs">
+        <button type="button" data-mode="student">学生モード</button>
+        <button type="button" data-mode="teacher">教員モード</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="statusline">
+      <span class="chip"><span class="dot"></span><span id="conn">試作版（この端末内で動作）</span></span>
+      <span class="chip chip-count" id="count"></span>
+    </div>
+    <div id="student-area" hidden></div>
+    <div id="teacher-area" hidden></div>
+    <section class="board-wrap"><div id="seatmap"></div></section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script type="module" src="js/room.js"></script>
+</body>
+</html>

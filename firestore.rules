@@ -1,0 +1,143 @@
+rules_version = '2';
+
+// 出席確認システムのアクセス制限
+//  - 名簿（学籍番号つき）は、その授業を作った先生だけが読み書きできる
+//  - 学生の画面に出るのは「席→氏名」と「誰が座ったか」だけ
+//  - 出席登録は、学籍番号が名簿と一致する場合だけ通る（照合はここで行う）
+//  - 1回の授業につき、1つの端末から登録できるのは1人まで（あとから書き換えもできない）
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // 教員として使えるのは、大学のGoogleアカウントだけ
+    function isTeacherAccount() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower().matches('.*@meijo-u[.]ac[.]jp');
+    }
+
+    function coursePath(cid) {
+      return /databases/$(database)/documents/courses/$(cid);
+    }
+
+    // 読み取り用：いまの授業データで持ち主を確かめる
+    function isOwner(cid) {
+      return signedIn() && exists(coursePath(cid)) && get(coursePath(cid)).data.ownerUid == request.auth.uid;
+    }
+
+    // 書き込み用：授業の作成と同時に名簿なども作るため、書き込み後の状態で確かめる
+    function isOwnerAfter(cid) {
+      return signedIn() && getAfter(coursePath(cid)).data.ownerUid == request.auth.uid;
+    }
+
+    function canWrite(cid) {
+      return isOwner(cid) || isOwnerAfter(cid);
+    }
+
+    function rosterPath(cid) {
+      return /databases/$(database)/documents/courses/$(cid)/priv/roster;
+    }
+
+    function hasRoster(cid) {
+      return exists(rosterPath(cid)) && get(rosterPath(cid)).data.keys().hasAll(['seats', 'ids', 'names']);
+    }
+
+    function seatOwnerId(cid, seat) {
+      return get(rosterPath(cid)).data.seats.get(seat, '');
+    }
+
+    function rosterName(cid, sid) {
+      return get(rosterPath(cid)).data.names.get(sid, '');
+    }
+
+    function inRoster(cid, sid) {
+      return get(rosterPath(cid)).data.ids.hasAny([sid]);
+    }
+
+    function sessionPath(cid, date) {
+      return /databases/$(database)/documents/courses/$(cid)/sessions/$(date);
+    }
+
+    function sessionOpen(cid, date) {
+      return !exists(sessionPath(cid, date)) || get(sessionPath(cid, date)).data.open == true;
+    }
+
+    function checkinPath(cid, date) {
+      return /databases/$(database)/documents/courses/$(cid)/sessions/$(date)/checkins/$(request.auth.uid);
+    }
+
+    // 授業の基本情報と座席の配置（個人情報は含まない）
+    match /courses/{cid} {
+      allow get: if true;
+      allow list: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isTeacherAccount() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isOwner(cid) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if isOwner(cid);
+
+      // 席→氏名（学生の画面用）
+      match /pub/{docId} {
+        allow read: if true;
+        allow write: if canWrite(cid);
+      }
+
+      // 名簿（学籍番号を含む）
+      match /priv/{docId} {
+        allow read: if isOwner(cid);
+        allow write: if canWrite(cid);
+      }
+
+      // 授業メモ
+      match /notes/{date} {
+        allow read: if isOwner(cid);
+        allow write: if canWrite(cid);
+      }
+
+      match /sessions/{date} {
+        allow read: if true;              // 受付中かどうかだけを保存する
+        allow write: if canWrite(cid);
+
+        // 誰が座ったか（氏名と時刻だけ。学籍番号は含めない）
+        match /seats/{seat} {
+          allow read: if true;
+          allow create: if signedIn()
+            && getAfter(checkinPath(cid, date)).data.seat == seat
+            && getAfter(checkinPath(cid, date)).data.name == request.resource.data.name;
+          allow update, delete: if canWrite(cid);
+        }
+
+        // 学生本人の登録（学籍番号を含むので、読めるのは本人と担当教員だけ）
+        match /checkins/{deviceUid} {
+          allow read: if isOwner(cid) || (signedIn() && request.auth.uid == deviceUid);
+          allow create: if signedIn()
+            && request.auth.uid == deviceUid
+            && sessionOpen(cid, date)
+            && request.resource.data.keys().hasOnly(['sid', 'seat', 'name', 'at', 'status', 'method'])
+            && request.resource.data.status == 'present'
+            && request.resource.data.method == 'student'
+            && request.resource.data.sid is string
+            && request.resource.data.name is string
+            && hasRoster(cid)
+            && (
+                 // 名簿で席が決まっている場合：学籍番号と氏名が名簿と一致すること
+                 (seatOwnerId(cid, request.resource.data.seat) == request.resource.data.sid
+                   && rosterName(cid, request.resource.data.sid) == request.resource.data.name)
+                 // 席が決まっていない場合：名簿にない学生だけが空席に座れる
+                 || (seatOwnerId(cid, request.resource.data.seat) == ''
+                   && !inRoster(cid, request.resource.data.sid))
+               );
+          allow update, delete: if canWrite(cid);
+        }
+
+        // 教員が付けた出欠（出席・遅刻・欠席）
+        match /marks/{studentId} {
+          allow read: if isOwner(cid);
+          allow write: if canWrite(cid);
+        }
+      }
+    }
+  }
+}
