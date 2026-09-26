@@ -124,15 +124,19 @@ service cloud.firestore {
             && request.resource.data.status == 'present'
             && request.resource.data.method == 'student'
             && request.resource.data.sid is string
+            && request.resource.data.sid.size() > 0
+            && request.resource.data.sid.size() <= 32
             && request.resource.data.name is string
+            && request.resource.data.name.size() <= 60
             && hasRoster(cid)
             && (
                  // 名簿で席が決まっている場合：学籍番号と氏名が名簿と一致すること
                  (seatOwnerId(cid, request.resource.data.seat) == request.resource.data.sid
                    && rosterName(cid, request.resource.data.sid) == request.resource.data.name)
-                 // 席が決まっていない場合：名簿にない学生だけが空席に座れる
+                 // 席が決まっていない場合：名簿にない学生は、氏名を入力すれば空席に座れる
                  || (seatOwnerId(cid, request.resource.data.seat) == ''
-                   && !inRoster(cid, request.resource.data.sid))
+                   && !inRoster(cid, request.resource.data.sid)
+                   && request.resource.data.name.size() > 0)
                  // 自由席の授業：名簿の学生は好きな空席に座れる（氏名は学生の画面に出さないので空にする）
                  || (freeSeating(cid)
                    && seatOwnerId(cid, request.resource.data.seat) == ''
