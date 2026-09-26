@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>出席登録のしかた</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .sheet { max-width: 820px; margin: 0 auto; padding: 24px 20px 60px; }
+    .sheet h1 { font-size: 26px; margin: 0 0 4px; }
+    .sheet h2 { display: flex; align-items: center; gap: 8px; font-size: 19px; margin: 28px 0 10px; }
+    .sheet h2::before { content: ""; width: 4px; height: 19px; border-radius: 2px; background: var(--primary); }
+    .lead { color: var(--muted); margin: 0 0 18px; }
+    .step { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    .step:last-child { border-bottom: none; }
+    .step .no { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; }
+    .step h3 { margin: 2px 0 4px; font-size: 17px; }
+    .step p { margin: 0; }
+    .cases { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .case { padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+    .case h3 { margin: 0 0 6px; font-size: 16px; }
+    .ok-box { background: var(--ok-soft); border: 1px solid #a6d4b3; border-radius: 10px; padding: 12px 16px; }
+    .warn-box { background: var(--late-soft); border: 1px solid #eac48a; border-radius: 10px; padding: 12px 16px; }
+    table.list td { white-space: normal; vertical-align: top; }
+    table.list td:first-child { white-space: nowrap; font-weight: 700; }
+    .blank { display: inline-block; min-width: 220px; border-bottom: 1px solid var(--line-strong); }
+    ul.tight { margin: 6px 0 0; padding-left: 1.2em; }
+    ul.tight li { margin: 3px 0; }
+    @media (max-width: 640px) { .cases { grid-template-columns: 1fr; } }
+    @media print {
+      body { background: #fff; font-size: 12.5px; }
+      .sheet { padding: 0; max-width: none; }
+      .sheet h2 { margin: 16px 0 8px; }
+      .step { padding: 8px 0; }
+      .panel, .case, .ok-box, .warn-box { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <h1>出席登録のしかた</h1>
+    <p class="lead">授業名：<span class="blank"></span>　担当：<span class="blank"></span></p>
+
+    <div class="ok-box">
+      この授業では、スマートフォンから<b>自分の席を選んで出席を登録</b>します。かかる時間は20秒ほどです。
+      登録すると、<b>座席と登録時刻</b>が記録されます。
+    </div>
+
+    <h2>登録の手順</h2>
+    <div class="step">
+      <div class="no">1</div>
+      <div>
+        <h3>QRコードを読み取る</h3>
+        <p>教室のスクリーンに表示されるQRコードを、スマートフォンのカメラで読み取ります。読み取れないときは、先生が知らせるURLを直接入力してください。</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="no">2</div>
+      <div>
+        <h3>自分が座っている席をタップする</h3>
+        <p>画面に教室の座席表が出ます。黒板の位置を見ながら、<b>いま自分が座っている席</b>をタップしてください。</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="no">3</div>
+      <div>
+        <h3>学籍番号を入力して「出席する」を押す</h3>
+        <p>本人確認のため、学籍番号を入力します。全角で入力しても大丈夫です。</p>
+      </div>
+    </div>
+
+    <h2>2つの方式があります</h2>
+    <div class="cases">
+      <div class="case">
+        <h3>座席が決まっている場合</h3>
+        <p>座席表に<b>氏名が表示されます</b>。自分の名前が書かれた席をタップし、学籍番号を入力してください。</p>
+        <p class="hint">ほかの人の席をタップしても登録できません。</p>
+      </div>
+      <div class="case">
+        <h3>座席が自由な場合</h3>
+        <p>座席表には氏名が出ません。<b>自分が座った席</b>をタップし、学籍番号を入力してください。</p>
+        <p class="hint">すでに埋まっている席は「着席済み」と表示されます。</p>
+      </div>
+    </div>
+
+    <h2>登録できたかどうかの見分け方</h2>
+    <p>画面の上に <b>「✅ 出席登録済み」</b> と表示され、自分の席が<b>緑色</b>になり、<b>青い枠</b>で囲まれます。この表示が出ていれば完了です。画面を閉じても構いません。</p>
+    <p class="hint">表示が出ない場合は登録されていません。下の表を確認してください。</p>
+
+    <h2>エラーが出たときは</h2>
+    <div class="table-wrap">
+      <table class="list">
+        <tr><th>表示されるメッセージ</th><th>意味と対処</th></tr>
+        <tr>
+          <td>学籍番号が一致しません</td>
+          <td>その席は別の人の席です。自分の名前が書かれた席をタップしてください。学籍番号の入力間違いも確認してください。</td>
+        </tr>
+        <tr>
+          <td>この席はすでに使われています</td>
+          <td>ほかの人が登録済みの席です。自分が座っている席を選び直してください。</td>
+        </tr>
+        <tr>
+          <td>この端末からはすでに出席登録されています</td>
+          <td>1台のスマートフォンから登録できるのは1人までです。友人の分を代わりに登録することはできません。</td>
+        </tr>
+        <tr>
+          <td>学籍番号が名簿にありません</td>
+          <td>履修登録が反映されていない可能性があります。学籍番号を確認し、それでも登録できない場合は先生に申し出てください（氏名を入力して登録できる場合もあります）。</td>
+        </tr>
+        <tr>
+          <td>現在、出席の受付は停止中です</td>
+          <td>受付時間が終了しています。先生に申し出てください。</td>
+        </tr>
+      </table>
+    </div>
+
+    <h2>記録されること</h2>
+    <ul class="tight">
+      <li>学籍番号・氏名（名簿の情報）</li>
+      <li>登録した<b>座席</b></li>
+      <li>登録した<b>時刻</b>（分単位まで）</li>
+    </ul>
+    <p class="hint">これらは担当教員だけが見られます。ほかの学生の画面には、学籍番号・登録時刻は表示されません。データはGoogleのサーバー（東京）に保存され、出席の確認以外の目的には使いません。</p>
+
+    <h2>不正について</h2>
+    <div class="warn-box">
+      <p style="margin-top: 0"><b>代理出席（いわゆる「代返」）は、次の仕組みで分かるようになっています。</b></p>
+      <ul class="tight">
+        <li><b>1台の端末からは1人分しか登録できません。</b>友人の分をまとめて登録することはできません。</li>
+        <li><b>他人の学籍番号では登録できません。</b>座席が決まっている場合、その席に割り当てられた学籍番号と一致しなければ登録は拒否されます。</li>
+        <li><b>座席と時刻が記録され、先生の画面にすぐ表示されます。</b>実際に座っている人と、画面に出ている名前を照らし合わせることができます。</li>
+        <li><b>登録の取り消しや修正ができるのは先生だけです。</b></li>
+      </ul>
+      <p style="margin-bottom: 0">出席していないのに登録した場合や、他人に登録を依頼した場合は、<b>不正行為として大学の規程に従って対応します</b>。</p>
+    </div>
+
+    <h2>こんなときは</h2>
+    <ul class="tight">
+      <li><b>スマートフォンを忘れた・電池が切れた</b> … 先生に申し出てください。先生が代わりに登録します。</li>
+      <li><b>電波が弱い・登録できない</b> … 少し待ってからもう一度お試しください。それでも登録できないときは先生に申し出てください。</li>
+      <li><b>遅れて教室に入った</b> … そのまま登録し、先生に申し出てください（遅刻として記録されます）。</li>
+      <li><b>席を移動した</b> … 登録後に席を移った場合は、先生に申し出てください。</li>
+    </ul>
+
+    <p class="hint" style="margin-top: 24px">※ ログインやアプリのインストールは必要ありません。ブラウザで開くだけで使えます。</p>
+  </main>
+</body>
+</html>

@@ -27,6 +27,7 @@ export function init(state) {
             <li>学籍番号を入力して「出席する」を押す</li>
           </ol>
           <div id="my-status" style="margin-top: 12px"></div>
+          <p class="hint"><a href="guide.html" target="_blank">はじめての方へ：出席登録のしかた（詳しい説明）</a></p>
         </div>
         <div class="qr-card qr-block">
           <p>このQRコードを読み取ってください</p>
