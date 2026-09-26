@@ -83,6 +83,7 @@ function defaultCourse() {
     rowGaps: [],
     groups: {},
     flipped: false,
+    freeSeating: false, // true なら座席を指定せず、学生が好きな空席を選ぶ
   };
 }
 

@@ -1,8 +1,8 @@
 // 教員モード：タブ式のツールバー（出欠／座席／グループ／名簿／授業設定）と座席表の操作
 import * as store from './store.js';
-import { seatInfo, seatOf, bookStudents, STATUS_LABEL, METHOD_LABEL } from './attendance.js';
+import { seatInfo, seatOf, findStudent, bookStudents, STATUS_LABEL, METHOD_LABEL } from './attendance.js';
 import { renderSeatmap } from './seatmap.js';
-import { assignEmpty, reshuffle, swapSeats, autoGroups, stepGroup, groupSummary } from './layout.js';
+import { assignEmpty, cleanup, reshuffle, swapSeats, autoGroups, stepGroup, groupSummary } from './layout.js';
 import { readRosterFile, chooseColumns, rowsToStudents, parsePaste, mergeRoster } from './roster.js';
 import { studentUrl } from './student.js';
 import { $, $$, esc, fmtTime, DAYS, slotLabel, dialog, toast, csvText, downloadText } from './util.js';
@@ -44,6 +44,7 @@ export function init(state) {
         <button type="button" class="btn btn-toggle" id="open-toggle"></button>
         <button type="button" class="btn btn-toggle t-red" data-tool="absent" data-label="欠席を付ける"></button>
         <button type="button" class="btn btn-toggle t-orange" data-tool="late" data-label="遅刻を付ける"></button>
+        <button type="button" class="btn btn-outline" id="not-yet"></button>
         <button type="button" class="btn btn-outline" id="memo">授業メモ</button>
       </div>
       <div class="tool-group">
@@ -64,6 +65,7 @@ export function init(state) {
       </div>
       <div class="tool-group">
         <span class="tool-group-title">割り当て</span>
+        <button type="button" class="btn btn-toggle" id="free-seating"></button>
         <button type="button" class="btn" id="shuffle">席をシャッフル</button>
         <button type="button" class="btn btn-red" id="clear-all">クリア…</button>
       </div>
@@ -151,6 +153,13 @@ export function render(state) {
   open.textContent = session.open ? '出席を受付中' : '受付を停止中';
   open.classList.toggle('on', session.open);
 
+  const free = !!course.freeSeating;
+  const fs = $('#free-seating');
+  fs.textContent = `座席指定なし（自由席）：${free ? 'ON' : 'OFF'}`;
+  fs.classList.toggle('on', free);
+  $('#shuffle').disabled = free;
+  $('#not-yet').textContent = `未登録の学生（${course.roster.filter((s) => !session.records[s.id]).length}名）`;
+
   $$('.tabs [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   $$('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== tab));
   $$('[data-tool]').forEach((b) => {
@@ -186,7 +195,7 @@ async function onSeatClick(key, e) {
         const i = c.disabled.indexOf(key);
         if (i >= 0) c.disabled.splice(i, 1);
         else c.disabled.push(key);
-        unseated = assignEmpty(c);
+        unseated = c.freeSeating ? (cleanup(c), 0) : assignEmpty(c);
       });
       if (displaced) toast(`${name} さんを別の空席に移動しました${unseated ? `（${unseated}名は席が足りません）` : ''}`);
       return;
@@ -257,6 +266,26 @@ async function seatDialog(info) {
   }
 
   if (!course.roster.length) return toast('名簿がありません。「名簿」タブで読み込むと、席を割り当てられます');
+
+  // 自由席のときは、席の割り当てではなく「その席に座っている学生を出席にする」
+  if (course.freeSeating) {
+    const yet = course.roster
+      .filter((s) => !S.session.records[s.id])
+      .sort((a, b) => a.id.localeCompare(b.id, 'ja', { numeric: true }));
+    if (!yet.length) return toast('名簿の全員が登録済みです');
+    const res = await dialog({
+      title: `座席 ${info.key} の学生を出席にする`,
+      body: `<p class="muted" style="margin-top:0">スマートフォンを忘れた学生などを、先生が代わりに登録できます。</p>
+             <div class="field"><select name="sid">${yet
+               .map((s) => `<option value="${esc(s.id)}">${esc(s.id)} ${esc(s.name)}</option>`)
+               .join('')}</select></div>`,
+      okText: '出席にする',
+    });
+    if (!res) return;
+    await store.setStatus(courseId, date, res.sid, 'present', { seat: info.key, name: findStudent(course, res.sid)?.name || '' });
+    return;
+  }
+
   const seated = new Set(Object.values(course.seats));
   const list = [...course.roster].sort((a, b) => seated.has(a.id) - seated.has(b.id) || a.id.localeCompare(b.id, 'ja', { numeric: true }));
   const res = await dialog({
@@ -304,12 +333,14 @@ function bind() {
     S.refresh();
   });
   on('#open-toggle', () => store.setOpen(S.courseId, S.date, !S.session.open));
+  on('#not-yet', showNotYet);
   on('#memo', editMemo);
   on('#display', () => window.open(`display.html?id=${S.courseId}`, `display-${S.courseId}`, 'width=1280,height=800'));
   on('#export', exportCsv);
 
   // 座席
   on('#flip', () => updateCourse((c) => (c.flipped = !c.flipped)));
+  on('#free-seating', toggleFreeSeating);
   on('#shuffle', shuffleSeats);
   on('#clear-all', clearAll);
   on('#resize', async () => {
@@ -318,7 +349,7 @@ function bind() {
     await updateCourse((c) => {
       c.cols = clamp($('#cols').value);
       c.rows = clamp($('#rows').value);
-      unseated = assignEmpty(c);
+      unseated = c.freeSeating ? (cleanup(c), 0) : assignEmpty(c);
     });
     toast(unseated ? `座席数を変更しました。${unseated}名分の席が足りません` : '座席数を変更しました', unseated ? 'error' : 'info');
   });
@@ -389,11 +420,14 @@ async function importStudents({ students, skipped }) {
   }
   let added = 0;
   let unseated = 0;
+  let free = false;
   await updateCourse((c) => {
     added = mergeRoster(c, students);
-    unseated = assignEmpty(c);
+    free = !!c.freeSeating;
+    unseated = free ? (cleanup(c), 0) : assignEmpty(c);
   });
   let msg = `${students.length}名を読み込みました（新規 ${added}名）`;
+  if (free) msg += '。自由席のため、座席の割り当ては行いません';
   if (skipped) msg += `。${skipped}行は学籍番号か氏名がないため飛ばしました`;
   if (unseated) msg += `。${unseated}名は席が足りません`;
   toast(msg, unseated ? 'error' : 'success');
@@ -448,7 +482,50 @@ async function clearAll() {
   toast('消去しました');
 }
 
+// 座席指定なし（自由席）の切り替え
+async function toggleFreeSeating() {
+  const turningOn = !S.course.freeSeating;
+  if (turningOn && Object.keys(S.course.seats).length) {
+    const ok = await dialog({
+      title: '座席指定なし（自由席）にする',
+      body: `<p style="margin-top:0">いまの座席の割り当てをすべて解除し、学生が好きな空席を選べるようにします。</p>
+             <p class="hint">名簿はそのまま残ります。学生は座った席をタップし、学籍番号を入力すると出席になります。氏名は先生の画面とプロジェクター表示にだけ出ます。</p>`,
+      okText: '自由席にする',
+    });
+    if (!ok) return;
+  }
+  await updateCourse((c) => {
+    c.freeSeating = turningOn;
+    if (turningOn) c.seats = {};
+  });
+  toast(turningOn ? '自由席にしました' : '座席指定に戻しました。「席をシャッフル」で席を決められます');
+}
+
+// まだ出席登録していない学生の一覧
+async function showNotYet() {
+  const { course, session } = S;
+  if (!course.roster.length) return toast('名簿がありません');
+  const yet = course.roster
+    .filter((s) => !session.records[s.id])
+    .sort((a, b) => a.id.localeCompare(b.id, 'ja', { numeric: true }));
+  if (!yet.length) return toast('名簿の全員が登録済みです', 'success');
+
+  const res = await dialog({
+    title: `未登録の学生（${yet.length}名）`,
+    body: `<div class="table-wrap" style="max-height:50vh"><table class="list"><tr><th>学籍番号</th><th>氏名</th></tr>
+           ${yet.map((s) => `<tr><td>${esc(s.id)}</td><td>${esc(s.name)}</td></tr>`).join('')}</table></div>
+           <p class="hint">この${yet.length}名を、まとめて欠席にできます（あとから個別に直せます）。</p>`,
+    okText: '全員を欠席にする',
+    cancelText: '閉じる',
+    danger: true,
+  });
+  if (!res) return;
+  for (const s of yet) await store.setStatus(S.courseId, S.date, s.id, 'absent', { name: s.name });
+  toast(`${yet.length}名を欠席にしました`);
+}
+
 async function shuffleSeats() {
+  if (S.course.freeSeating) return toast('自由席のため、席の割り当ては行いません（「座席指定なし」をOFFにしてください）', 'error');
   if (!S.course.roster.length) return toast('名簿がありません');
   const ok = await dialog({ title: '席をシャッフル', body: '<p>名簿の全員の席を、ランダムに並べ替えます。よろしいですか？</p>', okText: 'シャッフルする' });
   if (!ok) return;

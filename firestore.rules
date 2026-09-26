@@ -58,6 +58,11 @@ service cloud.firestore {
       return get(rosterPath(cid)).data.ids.hasAny([sid]);
     }
 
+    // 座席を指定しない授業（学生が好きな空席を選ぶ）かどうか
+    function freeSeating(cid) {
+      return courseData(cid).get('freeSeating', false) == true;
+    }
+
     function sessionPath(cid, date) {
       return /databases/$(database)/documents/courses/$(cid)/sessions/$(date);
     }
@@ -128,6 +133,11 @@ service cloud.firestore {
                  // 席が決まっていない場合：名簿にない学生だけが空席に座れる
                  || (seatOwnerId(cid, request.resource.data.seat) == ''
                    && !inRoster(cid, request.resource.data.sid))
+                 // 自由席の授業：名簿の学生は好きな空席に座れる（氏名は学生の画面に出さないので空にする）
+                 || (freeSeating(cid)
+                   && seatOwnerId(cid, request.resource.data.seat) == ''
+                   && inRoster(cid, request.resource.data.sid)
+                   && request.resource.data.name == '')
                );
           allow update, delete: if canWrite(cid);
         }

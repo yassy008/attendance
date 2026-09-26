@@ -78,8 +78,10 @@ function seatHtml(info, view, myStudentId, draggable, gridRow, gridCol) {
   if (info.disabled) {
     inner += `<span class="seat-x">×</span>`;
   } else if (info.student) {
+    // 自由席では学生の画面に氏名を出さないので、代わりに「着席済み」と表示する
+    const shownName = info.student.name || (view === 'teacher' ? '' : '着席済み');
     if (view === 'teacher') inner += `<span class="seat-id">${esc(info.student.id)}</span>`;
-    inner += `<span class="seat-name">${esc(info.student.name)}</span>`;
+    if (shownName) inner += `<span class="seat-name">${esc(shownName)}</span>`;
     if (view === 'teacher' && info.status) {
       const t = info.record.time ? ` ${fmtTime(info.record.time)}` : '';
       inner += `<span class="seat-status">${STATUS_LABEL[info.status]}${t}</span>`;

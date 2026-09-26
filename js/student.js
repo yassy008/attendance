@@ -72,14 +72,20 @@ async function onSeat(state, key, myId) {
   if (!state.session.open) return toast('現在、出席の受付は停止中です', 'error');
   if (info.record) return toast('この席はすでに出席登録されています', 'error');
 
+  const free = !info.assigned && !!state.course.freeSeating; // 座席指定なしの授業
   let error = '';
   const values = { studentId: '', name: '' };
   for (;;) {
     const body = `
       ${error ? `<p class="dlg-error">${esc(error)}</p>` : ''}
-      ${info.assigned ? '<p class="muted" style="margin-top:0">本人確認のため、学籍番号を入力してください。</p>' : ''}
+      ${info.assigned || free ? '<p class="muted" style="margin-top:0">本人確認のため、学籍番号を入力してください。</p>' : ''}
       <div class="field"><label>学籍番号</label><input type="text" name="studentId" value="${esc(values.studentId)}" autocomplete="off" required></div>
-      ${info.assigned ? '' : `<div class="field"><label>氏名</label><input type="text" name="name" value="${esc(values.name)}" autocomplete="off" required></div>`}`;
+      ${
+        info.assigned
+          ? ''
+          : `<div class="field"><label>氏名${free ? '（名簿にない場合のみ）' : ''}</label>
+             <input type="text" name="name" value="${esc(values.name)}" autocomplete="off"${free ? '' : ' required'}></div>`
+      }`;
     const res = await dialog({
       title: info.assigned ? `座席 ${key}　${info.student.name} さん` : `座席 ${key} で出席登録`,
       body,

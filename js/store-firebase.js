@@ -171,6 +171,7 @@ function defaultCourse() {
     rowGaps: [],
     groups: {},
     flipped: false,
+    freeSeating: false, // true なら座席を指定せず、学生が好きな空席を選ぶ
   };
 }
 
@@ -445,31 +446,47 @@ export async function checkIn(cid, { seat, studentId, name }) {
   if ((cache.get(`seats:${cid}:${date}`) || []).some((s) => s.id === seat)) throw new Error('この席はすでに使われています');
 
   const assignedName = (cache.get(`pub:${cid}`)?.names || {})[seat];
-  const recName = assignedName || String(name ?? '').trim();
-  if (!recName) throw new Error('氏名を入力してください');
+  const typedName = String(name ?? '').trim();
+  if (!assignedName && !course.freeSeating && !typedName) throw new Error('氏名を入力してください');
 
-  const at = Date.now();
-  const batch = writeBatch(db);
-  batch.set(doc(checkinsCol(cid, date), user.uid), {
-    sid: id,
-    seat,
-    name: recName,
-    at,
-    status: 'present',
-    method: 'student',
-  });
-  batch.set(doc(seatsCol(cid, date), seat), { name: recName, at, by: user.uid });
-  try {
+  const write = async (recName) => {
+    const at = Date.now();
+    const batch = writeBatch(db);
+    batch.set(doc(checkinsCol(cid, date), user.uid), {
+      sid: id,
+      seat,
+      name: recName,
+      at,
+      status: 'present',
+      method: 'student',
+    });
+    batch.set(doc(seatsCol(cid, date), seat), { name: recName, at, by: user.uid });
     await batch.commit();
+  };
+  const denied = (e) => String(e && e.code).includes('permission-denied');
+
+  try {
+    // 自由席のときは、まず名簿の学生として登録する（氏名は教員の画面だけに出すので空にする）
+    await write(assignedName || (course.freeSeating ? '' : typedName));
   } catch (e) {
-    if (String(e && e.code).includes('permission-denied')) {
-      throw new Error(
-        assignedName
-          ? '学籍番号が一致しません。自分の名前の席か確認してください'
-          : 'この学籍番号では登録できません。名簿にある場合は、自分の名前の席を選んでください',
-      );
+    if (!denied(e)) throw new Error('登録できませんでした。通信状態を確認してください');
+    // 自由席で名簿にない学生の場合は、入力された氏名で登録し直す
+    if (course.freeSeating && typedName) {
+      try {
+        await write(typedName);
+        notify();
+        return;
+      } catch {
+        /* 下のメッセージを出す */
+      }
     }
-    throw new Error('登録できませんでした。通信状態を確認してください');
+    throw new Error(
+      assignedName
+        ? '学籍番号が一致しません。自分の名前の席か確認してください'
+        : course.freeSeating
+          ? '学籍番号が名簿にありません。番号を確認してください（履修登録前の方は、氏名も入力してください）'
+          : 'この学籍番号では登録できません。名簿にある場合は、自分の名前の席を選んでください',
+    );
   }
   notify();
 }
