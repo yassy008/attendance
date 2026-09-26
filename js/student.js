@@ -51,7 +51,8 @@ export function render(state) {
   let notice;
   if (mine) {
     const label = mine.status === 'present' ? '出席登録済み' : STATUS_LABEL[mine.status];
-    notice = `<div class="notice ok">✅ ${label}：<b>${esc(mine.seat ?? '')}　${esc(mine.name)}</b> さん（${fmtTime(mine.time)}）</div>`;
+    const who = mine.name ? `${mine.seat ?? ''}　${mine.name} さん` : `座席 ${mine.seat ?? ''}`;
+    notice = `<div class="notice ok">✅ ${label}：<b>${esc(who)}</b>（${fmtTime(mine.time)}）</div>`;
   } else if (!session.open) {
     notice = `<div class="notice">現在、出席の受付は停止中です。</div>`;
   } else {
