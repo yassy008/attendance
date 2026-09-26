@@ -93,7 +93,7 @@ async function renderList() {
           <div>
             <div class="title">${esc(c.title)}</div>
             <div class="meta">${c.year}年度 ${esc(c.term)}${c.roomName ? ` ・ ${esc(c.roomName)}` : ''}</div>
-            <div class="meta">名簿 ${c.roster?.length ?? 0}名 ・ 最終アクセス ${fmt(c.lastAccess)}</div>
+            <div class="meta">名簿 ${c.rosterCount ?? c.roster?.length ?? 0}名 ・ 最終アクセス ${fmt(c.lastAccess)}</div>
           </div>
         </div>
         <div class="actions">

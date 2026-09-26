@@ -202,7 +202,13 @@ export async function getCourse(cid) {
     watchDoc(`pub:${cid}`, pubRef(cid)),
     watchDoc(`priv:${cid}`, privRef(cid)),
   ]);
-  return buildCourse(cid);
+  const course = buildCourse(cid);
+  // 以前に作った授業には人数が入っていないので、担当教員が開いたときに補う
+  const stored = cache.get(`course:${cid}`);
+  if (course && cache.get(`priv:${cid}`) && stored && stored.rosterCount !== course.roster.length) {
+    updateDoc(courseRef(cid), { rosterCount: course.roster.length }).catch(() => {});
+  }
+  return course;
 }
 
 export async function listCourses() {
@@ -216,7 +222,23 @@ export async function listCourses() {
       () => cb([]),
     ),
   );
-  return cache.get(key) || [];
+  const list = cache.get(key) || [];
+  for (const c of list) if (c.rosterCount === undefined) syncRosterCount(c.id);
+  return list;
+}
+
+// 以前に作った授業には名簿の人数が入っていないので、一覧を開いたときに補う
+const syncing = new Set();
+async function syncRosterCount(cid) {
+  if (syncing.has(cid)) return;
+  syncing.add(cid);
+  try {
+    const snap = await getDoc(privRef(cid));
+    const n = snap.exists() ? (snap.data().students || []).length : 0;
+    await updateDoc(courseRef(cid), { rosterCount: n });
+  } catch {
+    /* 自分の授業でない場合などは何もしない */
+  }
 }
 
 export async function createCourse(data) {
@@ -226,7 +248,7 @@ export async function createCourse(data) {
   const now = Date.now();
   const { roster, seats, ...rest } = { ...defaultCourse(), ...data };
   const batch = writeBatch(db);
-  batch.set(courseRef(cid), { ...rest, ownerUid: uid(), createdAt: now, lastAccess: now });
+  batch.set(courseRef(cid), { ...rest, rosterCount: 0, ownerUid: uid(), createdAt: now, lastAccess: now });
   batch.set(privRef(cid), { students: [], seats: {}, ids: [], names: {} });
   batch.set(pubRef(cid), { names: {} });
   await batch.commit();
@@ -243,6 +265,7 @@ export async function updateCourse(cid, patch) {
   const batch = writeBatch(db);
   batch.set(courseRef(cid), {
     ...rest,
+    rosterCount: roster.length, // 授業一覧に人数を出すため（氏名や学籍番号は含めない）
     ownerUid: cur.ownerUid,
     createdAt: cur.createdAt ?? Date.now(),
     lastAccess: Date.now(),
