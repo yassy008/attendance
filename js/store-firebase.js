@@ -290,6 +290,9 @@ export async function deleteCourse(cid) {
 }
 
 // ---------- 授業日（出欠） ----------
+// 自分が登録した直後は、サーバーからの反映を待つ間だけ手元の記録で表示する
+const justRegistered = new Map();
+
 function buildSession(cid, date) {
   const open = cache.get(`sess:${cid}:${date}`)?.open;
   const session = {
@@ -313,6 +316,12 @@ function buildSession(cid, date) {
       session.records[`#${s.id}`] = { status: 'present', seat: s.id, name: s.name, time: s.at || null, method: 'student' };
       if (s.by && s.by === uid()) session.devices[s.by] = `#${s.id}`;
     }
+  }
+
+  const mine = justRegistered.get(`${cid}:${date}`);
+  if (mine && !Object.values(session.records).some((r) => r.seat === mine.seat) && Date.now() - mine.at < 15000) {
+    session.records[`#${mine.seat}`] = { status: 'present', seat: mine.seat, name: mine.name, time: mine.at, method: 'student' };
+    session.devices[mine.uid] = `#${mine.seat}`;
   }
 
   for (const m of cache.get(`marks:${cid}:${date}`) || []) {
@@ -464,6 +473,8 @@ export async function checkIn(cid, { seat, studentId, name }) {
     });
     batch.set(doc(seatsCol(cid, date), seat), { name: recName, at, by: user.uid });
     await batch.commit();
+    // 登録できた場合だけ覚えておく（サーバーからの反映が届くまでの表示に使う）
+    justRegistered.set(`${cid}:${date}`, { seat, name: recName, at, uid: user.uid });
   };
   const denied = (e) => String(e && e.code).includes('permission-denied');
 
