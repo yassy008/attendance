@@ -80,3 +80,9 @@ authBar($('#authbar'));
 store.subscribe(refresh);
 if (state.mode === 'teacher') store.touchCourse(courseId);
 refresh();
+
+// 保存に失敗したときに、原因が分かるように画面へ出す
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = String(e.reason?.message || e.reason || '');
+  if (msg) toast(`保存できませんでした：${msg}`, 'error');
+});

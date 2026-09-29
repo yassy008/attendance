@@ -80,10 +80,13 @@ function watch(key, start) {
   return ready.get(key);
 }
 
+// includeMetadataChanges: サーバーの確認が返ってきたときにも通知を受け取る。
+// これがないと、自分で書き込んだ内容が画面に反映されない。
 const watchDoc = (key, ref) =>
   watch(key, (cb) =>
     onSnapshot(
       ref,
+      { includeMetadataChanges: true },
       (snap) => cb(snap.exists() ? snap.data() : null),
       () => cb(null), // 権限がない場合（学生の画面から名簿を見ようとした場合など）
     ),
@@ -93,8 +96,10 @@ const watchCol = (key, ref) =>
   watch(key, (cb) =>
     onSnapshot(
       ref,
+      { includeMetadataChanges: true },
       // 送信中（サーバーの確認前）の書き込みは表示しない。
       // 出席登録が拒否されたのに、一瞬「登録できた」ように見えるのを防ぐため。
+      // 確認が返ってきた時点で includeMetadataChanges により再通知され、表示される。
       (snap) => cb(snap.docs.filter((d) => !d.metadata.hasPendingWrites).map((d) => ({ id: d.id, ...d.data() }))),
       () => cb([]),
     ),

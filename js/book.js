@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { bookStudents, seatOf, STATUS_LABEL, STATUS_MARK, METHOD_LABEL } from './attendance.js';
 import { ensureTeacher, authBar } from './login.js';
-import { $, esc, param, fmtDateShort, fmtTime, slotLabel, asText, csvText, downloadText } from './util.js';
+import { $, esc, param, fmtDateShort, fmtTime, slotLabel, asText, csvText, downloadText, toast } from './util.js';
 
 const courseId = param('id');
 const CYCLE = [null, 'present', 'late', 'absent', 'excused'];
@@ -112,3 +112,9 @@ if (await ensureTeacher(document.querySelector('main'), '出席簿を見るに�
   store.subscribe(refresh);
   refresh();
 }
+
+// 保存に失敗したときに、原因が分かるように画面へ出す
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = String(e.reason?.message || e.reason || '');
+  if (msg) toast(`保存できませんでした：${msg}`, 'error');
+});
