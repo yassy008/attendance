@@ -26,8 +26,8 @@
     <section class="panel">
       <div class="page-head no-print" style="align-items: center">
         <div class="muted" style="font-size: 13.5px">
-          <span class="m-present">○</span> 出席　<span class="m-late">遅</span> 遅刻　<span class="m-absent">欠</span> 欠席　空欄 未登録<br>
-          マスをクリックすると「出席 → 遅刻 → 欠席 → 未登録」の順に切り替わります
+          <span class="m-present">○</span> 出席　<span class="m-late">遅</span> 遅刻　<span class="m-absent">欠</span> 欠席　<span class="m-excused">◎</span> 出席扱い（公欠）　空欄 未登録<br>
+          マスをクリックすると「出席 → 遅刻 → 欠席 → 出席扱い → 未登録」の順に切り替わります
         </div>
         <div class="row">
           <button type="button" class="btn btn-green" id="csv-table">CSV（出席簿の表）</button>
@@ -36,7 +36,7 @@
         </div>
       </div>
       <div class="table-wrap" id="book"></div>
-      <p class="hint">「欠席」の合計には未登録も含みます。出席率＝（出席＋遅刻）÷ 授業回数</p>
+      <p class="hint">「欠席」の合計には未登録も含みます。出席率＝（出席＋遅刻＋出席扱い）÷ 授業回数</p>
     </section>
   </main>
 

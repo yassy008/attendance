@@ -19,6 +19,7 @@ const TOOL_HINT = {
   drag: '学生の席をドラッグして別の席に重ねると入れ替わります（空席へは移動）。',
   absent: '席をクリックすると欠席になります。もう一度クリックすると元に戻ります。',
   late: '席をクリックすると遅刻になります。もう一度クリックすると出席に戻ります。',
+  excused: '席をクリックすると「出席扱い（公欠）」になります。もう一度クリックすると元に戻ります。',
 };
 
 const options = (items) => items.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
@@ -44,6 +45,8 @@ export function init(state) {
         <button type="button" class="btn btn-toggle" id="open-toggle"></button>
         <button type="button" class="btn btn-toggle t-red" data-tool="absent" data-label="欠席を付ける"></button>
         <button type="button" class="btn btn-toggle t-orange" data-tool="late" data-label="遅刻を付ける"></button>
+        <button type="button" class="btn btn-toggle t-blue" data-tool="excused" data-label="出席扱いにする"></button>
+        <button type="button" class="btn btn-outline" id="excused-pick">出席扱い（公欠）…</button>
         <button type="button" class="btn btn-outline" id="not-yet"></button>
         <button type="button" class="btn btn-outline" id="memo">授業メモ</button>
       </div>
@@ -209,6 +212,10 @@ async function onSeatClick(key, e) {
     case 'late':
       if (!info.student || info.disabled) return;
       return store.setStatus(S.courseId, S.date, info.student.id, info.status === 'late' ? 'present' : 'late', { seat: key, name });
+    case 'excused':
+      if (!info.student || info.disabled) return;
+      if (info.status === 'excused') return store.setStatus(S.courseId, S.date, info.student.id, info.record?.time ? 'present' : null);
+      return store.setStatus(S.courseId, S.date, info.student.id, 'excused', { seat: key, name });
     case 'aisle':
     case 'drag':
       return;
@@ -247,7 +254,7 @@ async function seatDialog(info) {
 
   if (info.student) {
     const cur = info.status || 'none';
-    const radios = [['present', '出席'], ['late', '遅刻'], ['absent', '欠席'], ['none', '未登録']]
+    const radios = [['present', '出席'], ['late', '遅刻'], ['absent', '欠席'], ['excused', '出席扱い'], ['none', '未登録']]
       .map(([v, l]) => `<label style="margin-right:14px"><input type="radio" name="status" value="${v}"${v === cur ? ' checked' : ''}> ${l}</label>`)
       .join('');
     const rec = info.record;
@@ -333,6 +340,7 @@ function bind() {
     S.refresh();
   });
   on('#open-toggle', () => store.setOpen(S.courseId, S.date, !S.session.open));
+  on('#excused-pick', pickExcused);
   on('#not-yet', showNotYet);
   on('#memo', editMemo);
   on('#display', () => window.open(`display.html?id=${S.courseId}`, `display-${S.courseId}`, 'width=1280,height=800'));
@@ -499,6 +507,28 @@ async function toggleFreeSeating() {
     if (turningOn) c.seats = {};
   });
   toast(turningOn ? '自由席にしました' : '座席指定に戻しました。「席をシャッフル」で席を決められます');
+}
+
+// 学校行事や実習などで欠席した学生を、出席扱い（公欠）にする
+async function pickExcused() {
+  const { course, session } = S;
+  if (!course.roster.length) return toast('名簿がありません');
+  const list = [...course.roster].sort((a, b) => a.id.localeCompare(b.id, 'ja', { numeric: true }));
+  const res = await dialog({
+    title: '出席扱い（公欠）にする',
+    body: `<p class="muted" style="margin-top:0">学校行事・実習などで欠席した学生を、出席扱いとして記録します。座席に座っていない学生も選べます。</p>
+      <div class="field"><select name="sid">${list
+        .map((s) => {
+          const cur = session.records[s.id];
+          return `<option value="${esc(s.id)}">${esc(s.id)} ${esc(s.name)}${cur ? `（現在：${STATUS_LABEL[cur.status]}）` : ''}</option>`;
+        })
+        .join('')}</select></div>`,
+    okText: '出席扱いにする',
+  });
+  if (!res) return;
+  const st = findStudent(course, res.sid);
+  await store.setStatus(S.courseId, S.date, res.sid, 'excused', { seat: seatOf(course, res.sid), name: st?.name || '' });
+  toast(`${st?.name || res.sid} さんを出席扱いにしました`);
 }
 
 // まだ出席登録していない学生の一覧

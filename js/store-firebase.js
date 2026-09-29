@@ -466,7 +466,7 @@ export async function setStatus(cid, date, studentId, status, { seat = null, nam
       status,
       seat: prev?.seat ?? seat,
       name: prev?.name || name,
-      at: prev?.time ?? (status === 'absent' ? null : Date.now()),
+      at: prev?.time ?? (status === 'absent' || status === 'excused' ? null : Date.now()),
     });
   }
   notify();

@@ -64,7 +64,9 @@ export function renderSeatmap(el, course, session, opt = {}) {
 
 function seatHtml(info, view, myStudentId, draggable, gridRow, gridCol) {
   const cls = ['seat'];
-  const showStatus = view === 'teacher' ? info.status : info.status === 'absent' ? null : info.status && 'present';
+  // 学生の画面には「着席しているかどうか」だけを出す（欠席・出席扱いは出さない）
+  const showStatus =
+    view === 'teacher' ? info.status : info.status === 'present' || info.status === 'late' ? 'present' : null;
   if (info.disabled) cls.push('disabled');
   else if (showStatus) cls.push(`st-${showStatus}`);
   else if (info.student) cls.push('assigned');

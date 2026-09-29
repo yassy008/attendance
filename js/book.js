@@ -5,7 +5,7 @@ import { ensureTeacher, authBar } from './login.js';
 import { $, esc, param, fmtDateShort, fmtTime, slotLabel, asText, csvText, downloadText } from './util.js';
 
 const courseId = param('id');
-const CYCLE = [null, 'present', 'late', 'absent'];
+const CYCLE = [null, 'present', 'late', 'absent', 'excused'];
 let course;
 let sessions = [];
 let students = [];
@@ -28,15 +28,18 @@ async function refresh() {
 function totals(st) {
   let present = 0;
   let late = 0;
+  let excused = 0;
   let absent = 0;
   for (const s of sessions) {
     const status = s.records[st.id]?.status;
     if (status === 'present') present++;
     else if (status === 'late') late++;
+    else if (status === 'excused') excused++;
     else absent++;
   }
-  const rate = sessions.length ? Math.round(((present + late) / sessions.length) * 100) : 0;
-  return { present, late, absent, rate };
+  // 出席扱い（公欠）は出席率に含める
+  const rate = sessions.length ? Math.round(((present + late + excused) / sessions.length) * 100) : 0;
+  return { present, late, excused, absent, rate };
 }
 
 function render() {
@@ -46,7 +49,7 @@ function render() {
   }
   const head = `<tr><th>学籍番号</th><th>氏名</th>${sessions
     .map((s, i) => `<th title="${esc(s.memo)}" style="text-align:center">${fmtDateShort(s.date)}${s.memo ? ' 📝' : ''}<br><span class="muted" style="font-weight:400">第${i + 1}回</span></th>`)
-    .join('')}<th>出席</th><th>遅刻</th><th>欠席</th><th>出席率</th></tr>`;
+    .join('')}<th>出席</th><th>遅刻</th><th>出席扱い</th><th>欠席</th><th>出席率</th></tr>`;
 
   const body = students
     .map((st) => {
@@ -58,7 +61,7 @@ function render() {
         })
         .join('');
       const t = totals(st);
-      return `<tr><td>${esc(st.id)}</td><td>${esc(st.name)}${st.outside ? ' <span class="muted">（名簿外）</span>' : ''}</td>${cells}<td>${t.present}</td><td>${t.late}</td><td>${t.absent}</td><td>${t.rate}%</td></tr>`;
+      return `<tr><td>${esc(st.id)}</td><td>${esc(st.name)}${st.outside ? ' <span class="muted">（名簿外）</span>' : ''}</td>${cells}<td>${t.present}</td><td>${t.late}</td><td>${t.excused}</td><td>${t.absent}</td><td>${t.rate}%</td></tr>`;
     })
     .join('');
   $('#book').innerHTML = `<table class="list book">${head}${body}</table>`;
@@ -75,10 +78,10 @@ $('#book').addEventListener('click', async (e) => {
 });
 
 $('#csv-table').addEventListener('click', () => {
-  const header = ['学籍番号', '氏名', ...sessions.map((s) => s.date), '出席', '遅刻', '欠席', '出席率'];
+  const header = ['学籍番号', '氏名', ...sessions.map((s) => s.date), '出席', '遅刻', '出席扱い', '欠席', '出席率'];
   const rows = students.map((st) => {
     const t = totals(st);
-    return [asText(st.id), st.name, ...sessions.map((s) => STATUS_LABEL[s.records[st.id]?.status] || ''), t.present, t.late, t.absent, `${t.rate}%`];
+    return [asText(st.id), st.name, ...sessions.map((s) => STATUS_LABEL[s.records[st.id]?.status] || ''), t.present, t.late, t.excused, t.absent, `${t.rate}%`];
   });
   downloadText(`出席簿_${course.title}.csv`, csvText([header, ...rows]));
 });

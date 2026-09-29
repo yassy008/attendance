@@ -178,7 +178,7 @@ export async function setStatus(courseId, date, studentId, status, { seat = null
     s.records[studentId] = {
       seat: prev?.seat ?? seat,
       name: prev?.name || name,
-      time: prev?.time ?? (status === 'absent' ? null : Date.now()),
+      time: prev?.time ?? (status === 'absent' || status === 'excused' ? null : Date.now()),
       method: prev?.method ?? 'teacher',
       status,
     };

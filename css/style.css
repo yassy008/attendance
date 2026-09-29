@@ -16,6 +16,8 @@
   --late-soft: #fcefd8;
   --absent: #b42318;
   --absent-soft: #fbe7e4;
+  --excused: #2f6fb0;
+  --excused-soft: #e6eef8;
   --board: #2e5140;
   --board-edge: #8a6a43;
   --radius: 10px;
@@ -102,6 +104,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .btn-toggle.t-red.on { background: var(--absent-soft); color: var(--absent); border-color: var(--absent); box-shadow: inset 0 0 0 1px var(--absent); }
 .btn-toggle.t-orange.on { background: var(--late-soft); color: var(--late); border-color: var(--late); box-shadow: inset 0 0 0 1px var(--late); }
 .btn-toggle.t-gray.on { background: #ebe7de; color: #3f4646; border-color: #6b7171; box-shadow: inset 0 0 0 1px #6b7171; }
+.btn-toggle.t-blue.on { background: var(--excused-soft); color: var(--excused); border-color: var(--excused); box-shadow: inset 0 0 0 1px var(--excused); }
 
 /* ---------- 教員モードのツールバー（タブ） ---------- */
 .toolbar { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 16px; }
@@ -158,6 +161,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .seat.st-late .seat-status { color: var(--late); }
 .seat.st-absent .seat-inner { background: var(--absent-soft); border-color: #e3b1aa; box-shadow: inset 5px 0 0 var(--absent); }
 .seat.st-absent .seat-status { color: var(--absent); }
+.seat.st-excused .seat-inner { background: var(--excused-soft); border-color: #a9c6e6; box-shadow: inset 5px 0 0 var(--excused); }
+.seat.st-excused .seat-status { color: var(--excused); }
 .seat.disabled .seat-inner { background: #ebe7de; border-color: var(--line); cursor: default; }
 .seat.mine .seat-inner { outline: 3px solid var(--primary); outline-offset: 2px; }
 .seat[draggable=true] .seat-inner { cursor: grab; }
@@ -213,6 +218,7 @@ table.book td.cell:hover { background: var(--primary-soft); }
 .m-present { color: var(--ok); font-weight: 700; }
 .m-late { color: var(--late); font-weight: 700; }
 .m-absent { color: var(--absent); font-weight: 700; }
+.m-excused { color: var(--excused); font-weight: 700; }
 
 /* ---------- ダイアログ・通知 ---------- */
 .dlg { width: min(460px, 92vw); padding: 0; border: none; border-top: 5px solid var(--primary); border-radius: 10px; box-shadow: 0 18px 48px rgba(0, 0, 0, .25); }

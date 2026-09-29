@@ -1,7 +1,7 @@
 // 出席に関する共通の計算（座席の表示、出席簿の行など）
 
-export const STATUS_LABEL = { present: '出席', late: '遅刻', absent: '欠席' };
-export const STATUS_MARK = { present: '○', late: '遅', absent: '欠' };
+export const STATUS_LABEL = { present: '出席', late: '遅刻', absent: '欠席', excused: '出席扱い' };
+export const STATUS_MARK = { present: '○', late: '遅', absent: '欠', excused: '◎' };
 export const METHOD_LABEL = { student: '学生登録', teacher: '教員入力' };
 
 export const seatKey = (r, c) => `${r}-${c}`;
