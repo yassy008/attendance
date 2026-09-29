@@ -73,6 +73,13 @@ export function dialog({ title, body = '', okText = 'OK', cancelText = 'キャ�
   });
 }
 
+// Excel は「3-2」を日付（3月2日）に、先頭が0の学籍番号を数値に変えてしまう。
+// 数式の形にしておくと、そのままの文字として読み込まれる。
+export function asText(value) {
+  const s = value == null ? '' : String(value);
+  return s === '' ? '' : `="${s.replace(/"/g, '""')}"`;
+}
+
 export function csvText(rows) {
   const cell = (v) => {
     const s = v == null ? '' : String(v);

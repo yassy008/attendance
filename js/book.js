@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { bookStudents, seatOf, STATUS_LABEL, STATUS_MARK, METHOD_LABEL } from './attendance.js';
 import { ensureTeacher, authBar } from './login.js';
-import { $, esc, param, fmtDateShort, fmtTime, slotLabel, csvText, downloadText } from './util.js';
+import { $, esc, param, fmtDateShort, fmtTime, slotLabel, asText, csvText, downloadText } from './util.js';
 
 const courseId = param('id');
 const CYCLE = [null, 'present', 'late', 'absent'];
@@ -78,7 +78,7 @@ $('#csv-table').addEventListener('click', () => {
   const header = ['学籍番号', '氏名', ...sessions.map((s) => s.date), '出席', '遅刻', '欠席', '出席率'];
   const rows = students.map((st) => {
     const t = totals(st);
-    return [st.id, st.name, ...sessions.map((s) => STATUS_LABEL[s.records[st.id]?.status] || ''), t.present, t.late, t.absent, `${t.rate}%`];
+    return [asText(st.id), st.name, ...sessions.map((s) => STATUS_LABEL[s.records[st.id]?.status] || ''), t.present, t.late, t.absent, `${t.rate}%`];
   });
   downloadText(`出席簿_${course.title}.csv`, csvText([header, ...rows]));
 });
@@ -88,7 +88,17 @@ $('#csv-records').addEventListener('click', () => {
   const rows = sessions.flatMap((s) =>
     students.map((st) => {
       const r = s.records[st.id];
-      return [s.date, course.title, `${slotLabel(course)}限`, st.id, st.name, r?.seat || '', r ? STATUS_LABEL[r.status] : '未登録', fmtTime(r?.time), r ? METHOD_LABEL[r.method] : ''];
+      return [
+        s.date,
+        course.title,
+        `${slotLabel(course)}限`,
+        asText(st.id),
+        st.name,
+        asText(r?.seat || ''),
+        r ? STATUS_LABEL[r.status] : '未登録',
+        fmtTime(r?.time),
+        r ? METHOD_LABEL[r.method] : '',
+      ];
     }),
   );
   downloadText(`出席記録_${course.title}.csv`, csvText([header, ...rows]));

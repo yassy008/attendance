@@ -5,7 +5,7 @@ import { renderSeatmap } from './seatmap.js';
 import { assignEmpty, cleanup, reshuffle, swapSeats, autoGroups, stepGroup, groupSummary } from './layout.js';
 import { readRosterFile, chooseColumns, rowsToStudents, parsePaste, mergeRoster } from './roster.js';
 import { studentUrl } from './student.js';
-import { $, $$, esc, fmtTime, DAYS, slotLabel, dialog, toast, csvText, downloadText } from './util.js';
+import { $, $$, esc, fmtTime, DAYS, slotLabel, dialog, toast, asText, csvText, downloadText } from './util.js';
 
 let S = null; // room.js の state（同じオブジェクトを使い続ける）
 let tab = 'attend';
@@ -560,9 +560,9 @@ function exportCsv() {
       date,
       course.title,
       `${slotLabel(course)}限`,
-      st.id,
+      asText(st.id),
       st.name,
-      r?.seat || seatOf(course, st.id) || '',
+      asText(r?.seat || seatOf(course, st.id) || ''),
       r ? STATUS_LABEL[r.status] : '未登録',
       fmtTime(r?.time),
       r ? METHOD_LABEL[r.method] : '',
