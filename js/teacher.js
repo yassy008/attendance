@@ -20,6 +20,7 @@ const TOOL_HINT = {
   absent: '席をクリックすると欠席になります。もう一度クリックすると元に戻ります。',
   late: '席をクリックすると遅刻になります。もう一度クリックすると出席に戻ります。',
   excused: '席をクリックすると「出席扱い（公欠）」になります。もう一度クリックすると元に戻ります。',
+  call: '席をクリックすると、その学生を1回指名したと記録します。Shift＋クリックで1回減らします。',
 };
 
 const options = (items) => items.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
@@ -49,6 +50,12 @@ export function init(state) {
         <button type="button" class="btn btn-outline" id="excused-pick">出席扱い（公欠）…</button>
         <button type="button" class="btn btn-outline" id="not-yet"></button>
         <button type="button" class="btn btn-outline" id="memo">授業メモ</button>
+      </div>
+      <div class="tool-group">
+        <span class="tool-group-title">指名</span>
+        <button type="button" class="btn btn-toggle t-purple" data-tool="call" data-label="指名を記録"></button>
+        <button type="button" class="btn btn-outline" id="next-call">次にあてる人</button>
+        <span class="muted" id="call-summary" style="font-size: 12.5px"></span>
       </div>
       <div class="tool-group">
         <span class="tool-group-title">表示・出力</span>
@@ -170,10 +177,16 @@ export function render(state) {
     b.textContent = b.dataset.label;
   });
   $('#tool-hint').textContent = TOOL_HINT[tool] || '席をクリックすると、その学生の出欠を個別に変更したり、空席に学生を割り当てたりできます。';
+
+  const calls = course.calls || {};
+  const never = course.roster.filter((s) => !calls[s.id]).length;
+  const max = Math.max(0, ...Object.values(calls).map((c) => c.n || 0));
+  $('#call-summary').textContent = course.roster.length ? `未指名 ${never}名 ／ 最多 ${max}回` : '';
   $('#book-link').href = `book.html?id=${state.courseId}`;
 
   renderSeatmap($('#seatmap'), course, session, {
     view: 'teacher',
+    calls: course.calls,
     flipped: course.flipped,
     aisleEdit: tool === 'aisle',
     draggable: tool === 'drag',
@@ -216,6 +229,19 @@ async function onSeatClick(key, e) {
       if (!info.student || info.disabled) return;
       if (info.status === 'excused') return store.setStatus(S.courseId, S.date, info.student.id, info.record?.time ? 'present' : null);
       return store.setStatus(S.courseId, S.date, info.student.id, 'excused', { seat: key, name });
+    case 'call': {
+      if (!info.student || info.disabled) return;
+      const sid = info.student.id;
+      const step = e.shiftKey ? -1 : 1;
+      let n = 0;
+      await updateCourse((c) => {
+        n = Math.max(0, ((c.calls[sid]?.n || 0) + step));
+        if (n === 0) delete c.calls[sid];
+        else c.calls[sid] = { n, last: S.date };
+      });
+      toast(n ? `${name} さん：指名${n}回目` : `${name} さんの指名を取り消しました`);
+      return;
+    }
     case 'aisle':
     case 'drag':
       return;
@@ -363,6 +389,7 @@ function bind() {
     S.refresh();
   });
   on('#open-toggle', () => store.setOpen(S.courseId, S.date, !S.session.open));
+  on('#next-call', nextCall);
   on('#excused-pick', pickExcused);
   on('#not-yet', showNotYet);
   on('#memo', editMemo);
@@ -481,7 +508,7 @@ async function showRoster() {
     danger: true,
   });
   if (!res) return;
-  const ids = new Set(Object.keys(res).map((k) => k.slice(4)));
+  const ids = new Set(Object.keys(res).filter((k) => k.startsWith("del:")).map((k) => k.slice(4)));
   if (!ids.size) return;
   await updateCourse((c) => {
     c.roster = c.roster.filter((s) => !ids.has(s.id));
@@ -497,15 +524,18 @@ async function clearAll() {
       <label style="display:block"><input type="checkbox" name="records" checked> ${esc(S.date)} の出席記録</label>
       <label style="display:block"><input type="checkbox" name="seats"> 座席の割り当て（名簿は残る）</label>
       <label style="display:block"><input type="checkbox" name="groups"> グループ分け</label>
+      <label style="display:block"><input type="checkbox" name="calls"> 指名の記録（学期の初めにリセットする場合）</label>
       <label style="display:block"><input type="checkbox" name="roster"> 名簿（座席の割り当ても消えます）</label>`,
     okText: '消去する',
     danger: true,
   });
-  if (!res || !Object.keys(res).length) return;
-  if (res.seats || res.groups || res.roster) {
+  if (!res) return;
+  if (!res.records && !res.seats && !res.groups && !res.roster && !res.calls) return;
+  if (res.seats || res.groups || res.roster || res.calls) {
     await updateCourse((c) => {
       if (res.seats || res.roster) c.seats = {};
       if (res.groups) c.groups = {};
+      if (res.calls) c.calls = {};
       if (res.roster) c.roster = [];
     });
   }
@@ -530,6 +560,40 @@ async function toggleFreeSeating() {
     if (turningOn) c.seats = {};
   });
   toast(turningOn ? '自由席にしました' : '座席指定に戻しました。「席をシャッフル」で席を決められます');
+}
+
+// 指名回数がいちばん少ない学生から、出席している人をランダムに1人選ぶ
+async function nextCall() {
+  if (!S.course.roster.length) return toast('名簿がありません');
+
+  for (;;) {
+    const { course, session } = S;
+    const calls = course.calls || {};
+    const here = course.roster.filter((s) => ['present', 'late'].includes(session.records[s.id]?.status));
+    const pool = here.length ? here : course.roster;
+    const min = Math.min(...pool.map((s) => calls[s.id]?.n || 0));
+    const candidates = pool.filter((s) => (calls[s.id]?.n || 0) === min);
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    const seat = seatOf(course, pick.id) || session.records[pick.id]?.seat || '—';
+
+    const res = await dialog({
+      title: '次にあてる人',
+      body: `<p style="margin-top:0;font-size:22px;font-weight:700">座席 ${esc(seat)}　${esc(pick.name)}</p>
+             <p class="muted" style="margin:0">これまでの指名：${min}回${here.length ? '' : '（出席の記録がないため、名簿全員から選んでいます）'}</p>
+             <p class="hint">同じ回数の候補：${candidates.length}名</p>
+             <div style="margin-top:14px"><button value="again" class="btn btn-outline">別の人</button></div>`,
+      okText: 'この人にする',
+      cancelText: '閉じる',
+    });
+    if (!res) return;
+    if (res._action === 'again') continue;
+
+    await updateCourse((c) => {
+      c.calls[pick.id] = { n: (c.calls[pick.id]?.n || 0) + 1, last: S.date };
+    });
+    toast(`${pick.name} さんを指名しました（${min + 1}回目）`, 'success');
+    return;
+  }
 }
 
 // 学校行事や実習などで欠席した学生を、出席扱い（公欠）にする

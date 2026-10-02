@@ -63,10 +63,11 @@ export function dialog({ title, body = '', okText = 'OK', cancelText = 'キャ�
       </form>`;
     document.body.append(dlg);
     dlg.addEventListener('close', () => {
-      const ok = dlg.returnValue === 'ok';
+      // キャンセル（またはEsc）のときだけ null。独自ボタンは _action で受け取れる
+      const ok = dlg.returnValue !== '' && dlg.returnValue !== 'cancel';
       const values = Object.fromEntries(new FormData(dlg.querySelector('form')));
       dlg.remove();
-      resolve(ok ? values : null);
+      resolve(ok ? { ...values, _action: dlg.returnValue } : null);
     });
     dlg.showModal();
     dlg.querySelector('input, textarea, select')?.focus();

@@ -35,7 +35,8 @@ export function renderSeatmap(el, course, session, opt = {}) {
   rows.forEach((r, ri) => {
     cols.forEach((c, ci) => {
       const info = seatInfo(course, session, seatKey(r, c));
-      cells += seatHtml(info, view, myStudentId, draggable, ri * 2 + 1, ci * 2 + 1);
+      const calls = (info.student && opt.calls?.[info.student.id]?.n) || 0;
+      cells += seatHtml(info, view, myStudentId, draggable, ri * 2 + 1, ci * 2 + 1, calls);
     });
   });
 
@@ -62,7 +63,7 @@ export function renderSeatmap(el, course, session, opt = {}) {
     </div>`;
 }
 
-function seatHtml(info, view, myStudentId, draggable, gridRow, gridCol) {
+function seatHtml(info, view, myStudentId, draggable, gridRow, gridCol, calls = 0) {
   const cls = ['seat'];
   // 学生の画面には「着席しているかどうか」だけを出す（欠席・出席扱いは出さない）
   const showStatus =
@@ -91,6 +92,8 @@ function seatHtml(info, view, myStudentId, draggable, gridRow, gridCol) {
       inner += `<span class="seat-status">✓</span>`;
     }
   }
+  // 指名した回数（教員の画面だけに出す）
+  if (view === 'teacher' && calls > 0) inner += `<span class="seat-calls">指名${calls}</span>`;
   const drag = draggable && info.student && !info.disabled ? ' draggable="true"' : '';
   return `<div class="${cls.join(' ')}" data-key="${info.key}"${drag} style="grid-row:${gridRow};grid-column:${gridCol}"><div class="seat-inner">${inner}</div></div>`;
 }

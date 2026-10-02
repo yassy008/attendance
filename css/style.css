@@ -105,6 +105,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .btn-toggle.t-orange.on { background: var(--late-soft); color: var(--late); border-color: var(--late); box-shadow: inset 0 0 0 1px var(--late); }
 .btn-toggle.t-gray.on { background: #ebe7de; color: #3f4646; border-color: #6b7171; box-shadow: inset 0 0 0 1px #6b7171; }
 .btn-toggle.t-blue.on { background: var(--excused-soft); color: var(--excused); border-color: var(--excused); box-shadow: inset 0 0 0 1px var(--excused); }
+.btn-toggle.t-purple.on { background: #efecf8; color: #5b4a9c; border-color: #5b4a9c; box-shadow: inset 0 0 0 1px #5b4a9c; }
 
 /* ---------- 教員モードのツールバー（タブ） ---------- */
 .toolbar { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 16px; }
@@ -154,6 +155,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .seat-status { margin-top: 2px; font-size: max(9px, 9cqi); font-weight: 700; }
 .seat-group { position: absolute; top: 3px; right: 4px; padding: 0 5px; border-radius: 999px; color: #fff; font-size: max(9px, 8.5cqi); font-weight: 700; }
 .seat-x { font-size: max(18px, 28cqi); color: #b5b0a5; }
+.seat-calls { position: absolute; right: 4px; bottom: 3px; padding: 0 4px; border-radius: 4px; background: #efecf8; color: #5b4a9c; font-size: max(9px, 8.5cqi); font-weight: 700; }
 
 .seat.st-present .seat-inner { background: var(--ok-soft); border-color: #a6d4b3; box-shadow: inset 5px 0 0 var(--ok); }
 .seat.st-present .seat-status { color: var(--ok); }

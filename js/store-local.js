@@ -83,7 +83,8 @@ function defaultCourse() {
     rowGaps: [],
     groups: {},
     flipped: false,
-    freeSeating: false, // true なら座席を指定せず、学生が好きな空席を選ぶ
+    freeSeating: false,
+    calls: {}, // 指名した回数 { 学籍番号: { n, last } }
   };
 }
 

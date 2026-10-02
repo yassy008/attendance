@@ -178,7 +178,8 @@ function defaultCourse() {
     rowGaps: [],
     groups: {},
     flipped: false,
-    freeSeating: false, // true なら座席を指定せず、学生が好きな空席を選ぶ
+    freeSeating: false,
+    calls: {}, // 指名した回数 { 学籍番号: { n, last } }
   };
 }
 
@@ -191,6 +192,7 @@ function buildCourse(cid) {
   if (priv) {
     course.roster = priv.students || [];
     course.seats = priv.seats || {};
+    course.calls = priv.calls || {};
   } else {
     // 学生の画面：公開されている「席→氏名」だけで組み立てる（学籍番号は取得しない）
     const names = cache.get(`pub:${cid}`)?.names || {};
@@ -254,7 +256,7 @@ export async function createCourse(data) {
   const { roster, seats, ...rest } = { ...defaultCourse(), ...data };
   const batch = writeBatch(db);
   batch.set(courseRef(cid), { ...rest, rosterCount: 0, ownerUid: uid(), createdAt: now, lastAccess: now });
-  batch.set(privRef(cid), { students: [], seats: {}, ids: [], names: {} });
+  batch.set(privRef(cid), { students: [], seats: {}, calls: {}, ids: [], names: {} });
   batch.set(pubRef(cid), { names: {} });
   await batch.commit();
   notify();
@@ -265,7 +267,8 @@ export async function updateCourse(cid, patch) {
   const cur = await getCourse(cid);
   if (!cur) throw new Error('授業が見つかりません');
   const next = typeof patch === 'function' ? patch(structuredClone(cur)) : { ...cur, ...patch };
-  const { roster = [], seats = {}, id, ...rest } = next;
+  // calls（指名の記録）は名簿と同じく教員だけが読める場所に保存する
+  const { roster = [], seats = {}, calls = {}, id, ...rest } = next;
 
   const batch = writeBatch(db);
   batch.set(courseRef(cid), {
@@ -278,6 +281,7 @@ export async function updateCourse(cid, patch) {
   batch.set(privRef(cid), {
     students: roster,
     seats,
+    calls,
     ids: roster.map((s) => s.id),
     names: Object.fromEntries(roster.map((s) => [s.id, s.name])),
   });
