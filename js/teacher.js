@@ -1,6 +1,6 @@
 // 教員モード：タブ式のツールバー（出欠／座席／グループ／名簿／授業設定）と座席表の操作
 import * as store from './store.js';
-import { seatInfo, seatOf, findStudent, bookStudents, STATUS_LABEL, METHOD_LABEL } from './attendance.js';
+import { seatInfo, seatOf, findStudent, normalizeId, bookStudents, STATUS_LABEL, METHOD_LABEL } from './attendance.js';
 import { renderSeatmap } from './seatmap.js';
 import { assignEmpty, cleanup, reshuffle, swapSeats, autoGroups, stepGroup, groupSummary } from './layout.js';
 import { readRosterFile, chooseColumns, rowsToStudents, parsePaste, mergeRoster } from './roster.js';
@@ -258,9 +258,18 @@ async function seatDialog(info) {
       .map(([v, l]) => `<label style="margin-right:14px"><input type="radio" name="status" value="${v}"${v === cur ? ' checked' : ''}> ${l}</label>`)
       .join('');
     const rec = info.record;
+    // 名簿にない学生の記録は、学籍番号と氏名を直せるようにする（入力間違いの修正用）
+    const outsider = !!rec && !findStudent(course, info.student.id);
+    const timeLine = rec?.time ? `登録時刻：${fmtTime(rec.time)}（${METHOD_LABEL[rec.method]}）` : '登録時刻：なし';
+    const idPart = outsider
+      ? `<p style="margin-top:0">${timeLine}<br><span class="muted">名簿にない学生の記録です。入力間違いがあれば、ここで直せます。</span></p>
+         <div class="field"><label>学籍番号</label><input type="text" name="sid" value="${esc(info.student.id)}" autocomplete="off"></div>
+         <div class="field"><label>氏名</label><input type="text" name="sname" value="${esc(info.student.name)}" autocomplete="off"></div>`
+      : `<p style="margin-top:0">学籍番号：${esc(info.student.id)}<br>${timeLine}</p>`;
+
     const res = await dialog({
       title: `${info.key}　${info.student.name}`,
-      body: `<p style="margin-top:0">学籍番号：${esc(info.student.id)}<br>${rec?.time ? `登録時刻：${fmtTime(rec.time)}（${METHOD_LABEL[rec.method]}）` : '登録時刻：なし'}</p>
+      body: `${idPart}
              <div class="field">${radios}</div>
              ${info.assigned ? '<label><input type="checkbox" name="unassign"> この席の割り当てを外す</label>' : ''}`,
       okText: '保存',
@@ -269,6 +278,20 @@ async function seatDialog(info) {
     const status = res.status === 'none' ? null : res.status;
     if (status !== info.status) await store.setStatus(courseId, date, info.student.id, status, { seat: info.key, name: info.student.name });
     if (res.unassign === 'on') await updateCourse((c) => delete c.seats[info.key]);
+
+    if (outsider && status) {
+      const newSid = normalizeId(res.sid || '');
+      const newName = String(res.sname || '').trim();
+      if (!newSid || !newName) return toast('学籍番号と氏名を入力してください', 'error');
+      if (newSid !== info.student.id || newName !== info.student.name) {
+        try {
+          await store.renameRecord(courseId, date, info.student.id, newSid, newName);
+          toast(`${newSid} ${newName} に修正しました`, 'success');
+        } catch (e) {
+          toast(e.message, 'error');
+        }
+      }
+    }
     return;
   }
 

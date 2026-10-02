@@ -477,6 +477,35 @@ export async function setStatus(cid, date, studentId, status, { seat = null, nam
   notify();
 }
 
+// 名簿にない学生の記録について、入力間違いの学籍番号や氏名を直す
+export async function renameRecord(cid, date, oldSid, newSid, newName) {
+  const session = buildSession(cid, date);
+  const rec = session.records[oldSid];
+  if (!rec) throw new Error('記録が見つかりません');
+  if (newSid !== oldSid && session.records[newSid]) throw new Error('その学籍番号は、すでにこの日に登録されています');
+
+  const batch = writeBatch(db);
+  for (const c of cache.get(`checkins:${cid}:${date}`) || []) {
+    if (c.sid === oldSid) batch.update(doc(checkinsCol(cid, date), c.id), { sid: newSid, name: newName });
+  }
+  const mark = (cache.get(`marks:${cid}:${date}`) || []).find((m) => m.id === oldSid);
+  if (mark) {
+    batch.delete(doc(marksCol(cid, date), oldSid));
+    batch.set(doc(marksCol(cid, date), newSid), {
+      status: mark.status,
+      seat: mark.seat ?? null,
+      name: newName,
+      at: mark.at ?? null,
+    });
+  }
+  if (rec.seat && newName !== rec.name) {
+    const seat = (cache.get(`seats:${cid}:${date}`) || []).find((s) => s.id === rec.seat);
+    if (seat) batch.update(doc(seatsCol(cid, date), rec.seat), { name: newName });
+  }
+  await batch.commit();
+  notify();
+}
+
 export async function updateRecordSeats(cid, date, moves) {
   const session = buildSession(cid, date);
   const seats = cache.get(`seats:${cid}:${date}`) || [];

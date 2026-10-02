@@ -186,6 +186,19 @@ export async function setStatus(courseId, date, studentId, status, { seat = null
   });
 }
 
+// 名簿にない学生の記録について、入力間違いの学籍番号や氏名を直す
+export async function renameRecord(courseId, date, oldSid, newSid, newName) {
+  return updateSession(courseId, date, (s) => {
+    const rec = s.records[oldSid];
+    if (!rec) throw new Error('記録が見つかりません');
+    if (newSid !== oldSid && s.records[newSid]) throw new Error('その学籍番号は、すでにこの日に登録されています');
+    delete s.records[oldSid];
+    s.records[newSid] = { ...rec, name: newName };
+    for (const [d, sid] of Object.entries(s.devices)) if (sid === oldSid) s.devices[d] = newSid;
+    return s;
+  });
+}
+
 // 席の入れ替え・シャッフルに合わせて、記録上の座席も動かす
 export async function updateRecordSeats(courseId, date, moves) {
   return updateSession(courseId, date, (s) => {

@@ -23,5 +23,6 @@ export const {
   clearSession,
   setStatus,
   updateRecordSeats,
+  renameRecord,
   checkIn,
 } = impl;
