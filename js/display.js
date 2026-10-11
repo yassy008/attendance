@@ -21,5 +21,17 @@ $('#fullscreen').addEventListener('click', () => {
   else document.documentElement.requestFullscreen();
 });
 
+// 日付が変わったら、開いたままでも新しい日の座席表に切り替える
+let lastToday = store.todayStr();
+function followToday() {
+  if (store.todayStr() === lastToday) return;
+  lastToday = store.todayStr();
+  refresh();
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) followToday();
+});
+setInterval(followToday, 60 * 1000);
+
 store.subscribe(refresh);
 refresh();

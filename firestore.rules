@@ -106,9 +106,12 @@ service cloud.firestore {
         // 誰が座ったか（氏名と時刻だけ。学籍番号は含めない）
         match /seats/{seat} {
           allow read: if true;
+          // 学生：自分の出席登録（checkins）と同時に、同じ席・同じ氏名で作る場合だけ（従来どおり）
           allow create: if signedIn()
             && getAfter(checkinPath(cid, date)).data.seat == seat
             && getAfter(checkinPath(cid, date)).data.name == request.resource.data.name;
+          // 教員：学生を席に入れたとき（登録を忘れた学生の入力、席の入れ替えなど）
+          allow create: if canWrite(cid);
           allow update, delete: if canWrite(cid);
         }
 

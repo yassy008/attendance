@@ -23,7 +23,7 @@ export function init(state) {
           <h2>出席のしかた</h2>
           <ol class="steps">
             <li>スマートフォンでQRコードを読み取る</li>
-            <li>座席表から自分の名前の席をタップする（名簿にない人は、空いている席）</li>
+            <li id="step-seat">座席表から自分の席をタップする</li>
             <li>学籍番号を入力して「出席する」を押す</li>
           </ol>
           <div id="my-status" style="margin-top: 12px"></div>
@@ -44,10 +44,18 @@ export function init(state) {
   $('#print-qr').addEventListener('click', () => printQr(state.course, url));
 }
 
+// 指定席の授業かどうか（座席表に名前が出ていて、自由席ではない）
+const isDesignated = (course) => !course.freeSeating && Object.keys(course.seats).length > 0;
+
 export function render(state) {
   const { course, session } = state;
   const myId = session.devices[device()] || null;
   const mine = myId ? session.records[myId] : null;
+  const designated = isDesignated(course);
+
+  $('#step-seat').innerHTML = designated
+    ? '座席表で<b>自分の名前が書かれた席</b>をタップする（この授業は座席が決まっています）'
+    : '座席表で<b>いま自分が座っている席</b>をタップする';
 
   let notice;
   if (mine) {
@@ -57,7 +65,9 @@ export function render(state) {
   } else if (!session.open) {
     notice = `<div class="notice">現在、出席の受付は停止中です。</div>`;
   } else {
-    notice = `<div class="notice">まだ出席登録していません。下の座席表から自分の席をタップしてください。</div>`;
+    notice = designated
+      ? `<div class="notice">まだ出席登録していません。<b>この授業は座席が決まっています。</b>下の座席表で、自分の名前が書かれた席をタップしてください。</div>`
+      : `<div class="notice">まだ出席登録していません。下の座席表で、いま自分が座っている席をタップしてください。</div>`;
   }
   $('#my-status').innerHTML = notice;
 
@@ -76,11 +86,19 @@ async function onSeat(state, key, myId) {
   if (info.record) return toast('この席はすでに出席登録されています', 'error');
 
   const free = !info.assigned && !!state.course.freeSeating; // 座席指定なしの授業
+  // 指定席の授業で、誰の席でもない空席を選んだ場合（名簿にない人だけが登録できる）
+  const emptyInDesignated = !info.assigned && isDesignated(state.course);
   let error = '';
   const values = { studentId: '', name: '' };
   for (;;) {
     const body = `
       ${error ? `<p class="dlg-error">${esc(error)}</p>` : ''}
+      ${
+        emptyInDesignated
+          ? `<p class="notice" style="margin-top:0"><b>この授業は座席が決まっています。</b><br>名簿に名前がある人は、この席では登録できません。画面を閉じて、座席表で<b>自分の名前が書かれた席</b>をタップしてください。</p>
+             <p class="muted">名簿に名前がない人だけ、下に入力して登録できます。</p>`
+          : ''
+      }
       ${info.assigned || free ? '<p class="muted" style="margin-top:0">本人確認のため、学籍番号を入力してください。</p>' : ''}
       <div class="field"><label>学籍番号</label><input type="text" name="studentId" value="${esc(values.studentId)}" autocomplete="off" required></div>
       ${
@@ -90,7 +108,11 @@ async function onSeat(state, key, myId) {
              <input type="text" name="name" value="${esc(values.name)}" autocomplete="off"${free ? '' : ' required'}></div>`
       }`;
     const res = await dialog({
-      title: info.assigned ? `座席 ${key}　${info.student.name} さん` : `座席 ${key} で出席登録`,
+      title: info.assigned
+        ? `座席 ${key}　${info.student.name} さん`
+        : emptyInDesignated
+          ? `座席 ${key}（名簿にない人の登録）`
+          : `座席 ${key} で出席登録`,
       body,
       okText: '出席する',
     });

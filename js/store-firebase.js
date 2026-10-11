@@ -58,9 +58,11 @@ export function newId() {
   return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
 }
 
+// 日本時間での「今日」。端末のタイムゾーン設定に左右されないようにする。
+// 出欠は日付ごとに保存するので、日付が変わると自動的に新しい回（受付中）になる。
+const JST_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
 export function todayStr(d = new Date()) {
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return JST_DATE.format(d);
 }
 
 // 最初のデータが届くまで待てるようにしたうえで、変更を購読する
@@ -335,10 +337,11 @@ function buildSession(cid, date) {
     devices: {},
   };
 
-  const checkins = cache.get(`checkins:${cid}:${date}`);
-  if (checkins && checkins.length) {
+  // 名簿を読めるのは担当教員だけなので、それで教員の画面かどうかを見分ける
+  const owner = !!cache.get(`priv:${cid}`);
+  if (owner) {
     // 教員の画面：学生本人の登録を学籍番号ごとにまとめる
-    for (const c of checkins) {
+    for (const c of cache.get(`checkins:${cid}:${date}`) || []) {
       session.records[c.sid] = { status: 'present', seat: c.seat, name: c.name, time: c.at || null, method: 'student' };
       session.devices[c.id] = c.sid;
     }
@@ -461,7 +464,8 @@ export async function clearSession(cid, date) {
   notify();
 }
 
-export async function setStatus(cid, date, studentId, status, { seat = null, name = '' } = {}) {
+// occupy: 教員が学生を席に入れた場合に true。その席を「使用中」にして、ほかの学生が登録できないようにする
+export async function setStatus(cid, date, studentId, status, { seat = null, name = '', occupy = false } = {}) {
   const session = buildSession(cid, date);
   const prev = session.records[studentId];
   if (!status) {
@@ -477,6 +481,10 @@ export async function setStatus(cid, date, studentId, status, { seat = null, nam
       name: prev?.name || name,
       at: prev?.time ?? (status === 'absent' || status === 'excused' ? null : Date.now()),
     });
+    if (occupy && seat && !prev?.seat) {
+      // 失敗しても出欠の記録は残す（ルールが古い場合など）
+      await setDoc(doc(seatsCol(cid, date), seat), { name: '', at: Date.now(), by: '' }).catch(() => {});
+    }
   }
   notify();
 }
@@ -594,12 +602,16 @@ export async function checkIn(cid, { seat, studentId, name }) {
       /* 確認できなければ下のメッセージを出す */
     }
     if (taken) throw new Error('この席はすでに使われています。別の席を選んでください');
+    // 指定席の授業（座席表に名前が出ている）で、名簿の学生が自分の席以外を選んだ場合
+    const designated = !course.freeSeating && Object.keys(cache.get(`pub:${cid}`)?.names || {}).length > 0;
     throw new Error(
       assignedName
-        ? '学籍番号が一致しません。自分の名前の席か確認してください'
+        ? 'この席は別の人の席です（学籍番号が一致しません）。座席表で自分の名前が書かれた席をタップしてください'
         : course.freeSeating
           ? '学籍番号が名簿にありません。番号を確認してください（履修登録前の方は、氏名も入力してください）'
-          : 'この学籍番号では登録できません。名簿にある場合は、自分の名前の席を選んでください',
+          : designated
+            ? 'この授業は座席が決まっているため、席を自由に選ぶことはできません。座席表で自分の名前が書かれた席を探して、その席をタップしてください'
+            : 'この学籍番号では登録できません。番号を確認し、それでも登録できない場合は先生に申し出てください',
     );
   }
   notify();

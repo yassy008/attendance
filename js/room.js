@@ -76,6 +76,24 @@ $('#rename').addEventListener('click', async () => {
   toast('変更しました');
 });
 
+// 日付が変わったら、画面を開いたままでも新しい日の回に切り替える。
+// これがないと、前回の授業から開きっぱなしの画面が「受付停止中」のままになり、
+// 学生が出席登録できない（教員の画面も前回の日付を表示し続ける）。
+let lastToday = store.todayStr();
+function followToday() {
+  const today = store.todayStr();
+  if (today === lastToday) return;
+  if (state.date === lastToday) state.date = today; // 教員が「今日」を見ていた場合だけ追従する
+  lastToday = today;
+  refresh();
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) followToday();
+});
+window.addEventListener('focus', followToday);
+window.addEventListener('pageshow', followToday);
+setInterval(followToday, 60 * 1000);
+
 authBar($('#authbar'));
 store.subscribe(refresh);
 if (state.mode === 'teacher') store.touchCourse(courseId);

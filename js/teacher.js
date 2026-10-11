@@ -19,7 +19,8 @@ const TOOL_HINT = {
   drag: '学生の席をドラッグして別の席に重ねると入れ替わります（空席へは移動）。',
   absent: '席をクリックすると欠席になります。もう一度クリックすると元に戻ります。',
   late: '席をクリックすると遅刻になります。もう一度クリックすると出席に戻ります。',
-  excused: '席をクリックすると「出席扱い（公欠）」になります。もう一度クリックすると元に戻ります。',
+  excused:
+    '学生のいる席をクリックすると「出席扱い」になります（もう一度クリックで元に戻ります）。空いている席をクリックすると、学籍番号を入力して、その席に学生を入れられます（出席登録を忘れた学生用）。',
   call: '席をクリックすると、その学生を1回指名したと記録します。Shift＋クリックで1回減らします。',
 };
 
@@ -226,7 +227,8 @@ async function onSeatClick(key, e) {
       if (!info.student || info.disabled) return;
       return store.setStatus(S.courseId, S.date, info.student.id, info.status === 'late' ? 'present' : 'late', { seat: key, name });
     case 'excused':
-      if (!info.student || info.disabled) return;
+      if (info.disabled) return;
+      if (!info.student) return placeByNumber(key); // 空いている席：学籍番号を入力してその席に入れる
       if (info.status === 'excused') return store.setStatus(S.courseId, S.date, info.student.id, info.record?.time ? 'present' : null);
       return store.setStatus(S.courseId, S.date, info.student.id, 'excused', { seat: key, name });
     case 'call': {
@@ -338,7 +340,11 @@ async function seatDialog(info) {
       okText: '出席にする',
     });
     if (!res) return;
-    await store.setStatus(courseId, date, res.sid, 'present', { seat: info.key, name: findStudent(course, res.sid)?.name || '' });
+    await store.setStatus(courseId, date, res.sid, 'present', {
+      seat: info.key,
+      name: findStudent(course, res.sid)?.name || '',
+      occupy: true,
+    });
     return;
   }
 
@@ -593,6 +599,50 @@ async function nextCall() {
     });
     toast(`${pick.name} さんを指名しました（${min + 1}回目）`, 'success');
     return;
+  }
+}
+
+// 「出席扱いにする」モードで空いている席をクリックしたとき：
+// 学籍番号を入力して、その席に学生を入れる（出席登録を忘れた学生などを、教員が後から入力する）
+async function placeByNumber(key) {
+  const { course, courseId, date } = S;
+  const candidates = course.roster
+    .filter((s) => !S.session.records[s.id])
+    .sort((a, b) => a.id.localeCompare(b.id, 'ja', { numeric: true }))
+    .map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`)
+    .join('');
+
+  let error = '';
+  let typed = { sid: '', sname: '' };
+  for (;;) {
+    const res = await dialog({
+      title: `座席 ${key} に学生を入れる（出席扱い）`,
+      body: `${error ? `<p class="dlg-error">${esc(error)}</p>` : ''}
+        <p class="muted" style="margin-top:0">出席登録を忘れた学生などを、この席に入れて出席扱いにします（${esc(date)}）。</p>
+        <div class="field"><label>学籍番号</label>
+          <input type="text" name="sid" list="place-roster" value="${esc(typed.sid)}" autocomplete="off" inputmode="numeric" required>
+          <datalist id="place-roster">${candidates}</datalist>
+          <p class="hint">数字を入力すると、名簿の候補が表示されます。</p></div>
+        <div class="field"><label>氏名（名簿にない学生の場合のみ）</label>
+          <input type="text" name="sname" value="${esc(typed.sname)}" autocomplete="off"></div>`,
+      okText: 'この席に入れる',
+    });
+    if (!res) return;
+    typed = { sid: res.sid, sname: res.sname };
+
+    const sid = normalizeId(res.sid);
+    const name = findStudent(course, sid)?.name || String(res.sname || '').trim();
+    const cur = S.session.records[sid];
+    const own = seatOf(course, sid);
+    if (!sid) error = '学籍番号を入力してください';
+    else if (!name) error = 'この学籍番号は名簿にありません。番号を確認するか、氏名も入力してください';
+    else if (cur) error = `${name} さんは、この日すでに記録があります（${STATUS_LABEL[cur.status]}${cur.seat ? `・座席 ${cur.seat}` : ''}）`;
+    else if (own && own !== key) error = `${name} さんの席は ${own} に決まっています。${own} の席をクリックしてください`;
+    else {
+      await store.setStatus(courseId, date, sid, 'excused', { seat: key, name, occupy: true });
+      toast(`座席 ${key} に ${name} さんを入れました（出席扱い）`, 'success');
+      return;
+    }
   }
 }
 

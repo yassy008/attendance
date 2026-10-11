@@ -38,9 +38,10 @@ export function newId() {
   return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
 }
 
+// 日本時間での「今日」。端末のタイムゾーン設定に左右されないようにする。
+const JST_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
 export function todayStr(d = new Date()) {
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return JST_DATE.format(d);
 }
 
 // 端末ID。URL に ?device=xxx を付けると別端末として扱える（動作確認用）
